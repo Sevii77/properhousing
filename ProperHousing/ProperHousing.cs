@@ -31,6 +31,7 @@ namespace ProperHousing {
 		private Lumina.Excel.ExcelSheet<HousingFurniture>? houseSheet;
 		private Lumina.Excel.ExcelSheet<HousingYardObject>? houseSheetOutdoor;
 		private unsafe Housing* housing;
+		private unsafe Layout* layout;
 		private unsafe Camera* camera;
 		
 		private delegate IntPtr GetHoverObjectDelegate(IntPtr ptr);
@@ -43,7 +44,11 @@ namespace ProperHousing {
 			houseSheetOutdoor = DataManager.GetExcelSheet<HousingYardObject>();
 			
 			housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("40 53 48 83 EC 20 33 DB 48 39 1D ?? ?? ?? ?? 75 2C 45 33 C0 33 D2 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 11 48 8B C8 E8 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ?? EB 07", 0xA));
+			layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 85 C9 74 ?? 48 8B 49 40 E9 ?? ?? ?? ??", 2));
 			camera = (Camera*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8D 35 ?? ?? ?? ?? 48 8B 09"));
+			
+			PluginLog.Log($"{((IntPtr)housing->CurrentZone()).ToString("X")}");
+			PluginLog.Log($"{((IntPtr)layout->Manager).ToString("X")}");
 			
 			GetHoverObjectHook = new Hook<GetHoverObjectDelegate>(
 				SigScanner.ScanText("40 55 41 55 48 8D 6C 24 ?? 48 81 EC 38 01 00 00"),
@@ -61,6 +66,10 @@ namespace ProperHousing {
 			var zone = housing->CurrentZone();
 			if(zone == null)
 				return IntPtr.Zero;
+			
+			// Dont run if we are previewing a object
+			if(layout->Manager->PreviewMode)
+				return GetHoverObjectHook.Original(ptr);
 			
 			var origin = camera->Pos;
 			GameGui.ScreenToWorld(ImGui.GetMousePos(), out var target);

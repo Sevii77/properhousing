@@ -68,4 +68,15 @@ namespace ProperHousing {
 			}
 		}
 	}
+	
+	[StructLayout(LayoutKind.Explicit)]
+	public unsafe struct Layout {
+		[FieldOffset(0x40)] public LayoutManager* Manager;
+	}
+	
+	[StructLayout(LayoutKind.Explicit)]
+	public unsafe struct LayoutManager {
+		[FieldOffset(0x10)] public IntPtr HoverItem;
+		[FieldOffset(0x70)] public bool PreviewMode;
+	}
 }
