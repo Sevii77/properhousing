@@ -1,0 +1,12 @@
+{
+	"Author": "Sevii",
+	"Name": "Better Housing",
+	"Punchline": "Furniture selection that actually works properly",
+	"Description": "Furniture selection that actually works properly",
+	"InternalName": "ProperHousing",
+	"ApplicableVersion": "any",
+	"DalamudApiLevel": 6,
+	"LoadPriority": 0,
+	"RepoUrl": "https://github.com/Sevii77/properhousing",
+	"Tags": ["House", "Housing", "Furniture", "Select", "Utility"]
+}
