@@ -70,18 +70,29 @@ namespace ProperHousing {
 			var curobj = IntPtr.Zero;
 			var distance = float.MaxValue;
 			
+			void CheckFurniture(Furniture* obj) {
+				if(Collides(obj, ref origin, ref dir, range, out var dist))
+					if(dist < distance) {
+						// PluginLog.Log(obj.Value.Name);
+						curobj = obj->Item;
+						distance = dist;
+					}
+			}
+			
 			var count = housing->IsOutdoor ? 40 : 400;
 			for(int i = 0; i < count; i++) {
 				var obj = zone->Furniture(i);
 				if(obj == null)
 					continue;
 				
-				if(Collides(obj.Value, ref origin, ref dir, range, out var dist))
-					if(dist < distance) {
-						curobj = obj.Value.Item;
-						distance = dist;
-					}
+				CheckFurniture(obj);
 			}
+			
+			// Placing a object from storeroom
+			if(housing->IsOutdoor && housing->CurrentZone()->OutdoorGhostObject != null && housing->CurrentZone()->OutdoorActiveObject == null)
+				CheckFurniture(housing->CurrentZone()->OutdoorGhostObject);
+			if(!housing->IsOutdoor && housing->CurrentZone()->IndoorGhostObject != null && housing->CurrentZone()->IndoorActiveObject == null)
+				CheckFurniture(housing->CurrentZone()->IndoorGhostObject);
 			
 			if(distance > range)
 				return IntPtr.Zero;
@@ -91,7 +102,7 @@ namespace ProperHousing {
 			// return GetHoverObjectHook.Original(ptr);
 		}
 		
-		private unsafe bool Collides(Furniture obj, ref Vector3 origin, ref Vector3 dir, float range, out float distance) {
+		private unsafe bool Collides(Furniture* obj, ref Vector3 origin, ref Vector3 dir, float range, out float distance) {
 			distance = range;
 			
 			var objmesh = GetMesh(obj);
@@ -100,9 +111,9 @@ namespace ProperHousing {
 				// ohoh, we cant target this object
 				// TODO: aabb or obb check before this
 			
-			var rot = Quaternion.CreateFromYawPitchRoll(obj.Rotation, 0, 0);
+			var rot = Quaternion.CreateFromYawPitchRoll(obj->Rotation, 0, 0);
 			var irot = Quaternion.Inverse(rot);
-			var pos = obj.Pos;
+			var pos = obj->Pos;
 			
 			// rotate ray to object space and check aabb
 			var bounds = objmesh.Value.Item2;
@@ -179,8 +190,8 @@ namespace ProperHousing {
 			return true;
 		}
 		
-		private unsafe (List<Vector3[]>, (Vector3, Vector3))? GetMesh(Furniture obj) {
-			var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj.ID)?.ModelKey : houseSheet?.GetRow(obj.ID)?.ModelKey;
+		private unsafe (List<Vector3[]>, (Vector3, Vector3))? GetMesh(Furniture* obj) {
+			var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj->ID)?.ModelKey : houseSheet?.GetRow(obj->ID)?.ModelKey;
 			if(!modelkey.HasValue)
 				return null;
 			

@@ -33,17 +33,22 @@ namespace ProperHousing {
 	[StructLayout(LayoutKind.Explicit)]
 	public unsafe struct HousingManager {
 		[FieldOffset(0x8980)] public fixed ulong Objects[400];
+		[FieldOffset(0x96E8)] public Furniture* IndoorGhostObject;
+		[FieldOffset(0x96F8)] public Furniture* IndoorActiveObject;
+		[FieldOffset(0x9AB8)] public Furniture* OutdoorGhostObject;
+		[FieldOffset(0x9AC8)] public Furniture* OutdoorActiveObject;
 		
-		public Furniture? Furniture(int i) {
+		public Furniture* Furniture(int i) {
 			if(Objects[i] == 0)
 				return null;
 			
-			return Marshal.PtrToStructure<Furniture>((IntPtr)Objects[i]);
+			return (Furniture*)Objects[i];
 		}
 	}
 	
 	[StructLayout(LayoutKind.Explicit)]
 	public unsafe struct Furniture {
+		[FieldOffset(0x30)] private fixed byte name[64];
 		[FieldOffset(0x80)] public uint ID;
 		[FieldOffset(0xA0)] public float X;
 		[FieldOffset(0xA4)] public float Y;
@@ -52,5 +57,15 @@ namespace ProperHousing {
 		[FieldOffset(0xF8)] public IntPtr Item;
 		
 		public Vector3 Pos => new Vector3(X, Y, Z);
+		public string Name {
+			get {
+				unsafe {
+					fixed(byte* a = &name[0]) {
+						var nam = (sbyte*)a;
+						return new String(nam, 0, 64);
+					}
+				}
+			}
+		}
 	}
 }
