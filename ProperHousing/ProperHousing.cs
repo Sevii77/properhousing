@@ -117,20 +117,15 @@ namespace ProperHousing {
 			
 			// rotate ray to object space and check aabb
 			var bounds = objmesh.Value.Item2;
-			var rotatedOrigin = Vector3.Transform(origin - pos, irot) + pos;
+			var rotatedOrigin = Vector3.Transform(origin - pos, irot);
 			var rotatedDir = Vector3.Transform(dir, irot);
-			if(!AABBIntersects(pos + bounds.Item1, pos + bounds.Item2, ref rotatedOrigin, ref rotatedDir, out var dist) || dist > range)
+			if(!AABBIntersects(bounds.Item1, bounds.Item2, ref rotatedOrigin, ref rotatedDir, out var dist) || dist > range)
 				return false;
 			
 			// check if we intersect with any triangle
-			foreach(var tri in objmesh.Value.Item1) {
-				var p1 = pos + Vector3.Transform(tri[0], rot);
-				var p2 = pos + Vector3.Transform(tri[1], rot);
-				var p3 = pos + Vector3.Transform(tri[2], rot);
-				
-				if(Intersects(ref p1, ref p2, ref p3, ref origin, ref dir, out dist))
+			foreach(var tri in objmesh.Value.Item1)
+				if(Intersects(tri[0], tri[1], tri[2], ref rotatedOrigin, ref rotatedDir, out dist))
 					distance = Math.Min(distance, dist);
-			}
 			
 			return distance < range;
 		}
@@ -161,7 +156,7 @@ namespace ProperHousing {
 			return true;
 		}
 		
-		private bool Intersects(ref Vector3 v0, ref Vector3 v1, ref Vector3 v2, ref Vector3 origin, ref Vector3 dir, out float distance) {
+		private bool Intersects(Vector3 v0, Vector3 v1, Vector3 v2, ref Vector3 origin, ref Vector3 dir, out float distance) {
 			// https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
 			var edge1 = v1 - v0;
 			var edge2 = v2 - v0;
