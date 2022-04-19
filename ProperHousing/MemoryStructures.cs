@@ -34,8 +34,10 @@ namespace ProperHousing {
 	public unsafe struct HousingManager {
 		[FieldOffset(0x8980)] public fixed ulong Objects[400];
 		[FieldOffset(0x96E8)] public Furniture* IndoorGhostObject;
+		[FieldOffset(0x96F0)] public Furniture* IndoorHoverObject;
 		[FieldOffset(0x96F8)] public Furniture* IndoorActiveObject;
 		[FieldOffset(0x9AB8)] public Furniture* OutdoorGhostObject;
+		[FieldOffset(0x9AC0)] public Furniture* OutdoorHoverObject;
 		[FieldOffset(0x9AC8)] public Furniture* OutdoorActiveObject;
 		
 		public Furniture* Furniture(int i) {
