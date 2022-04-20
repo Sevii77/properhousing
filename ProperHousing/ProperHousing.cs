@@ -69,9 +69,6 @@ namespace ProperHousing {
 			layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 85 C9 74 ?? 48 8B 49 40 E9 ?? ?? ?? ??", 2));
 			camera = (Camera*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8D 35 ?? ?? ?? ?? 48 8B 09"));
 			
-			PluginLog.Log($"{((IntPtr)housing->CurrentZone()).ToString("X")}");
-			PluginLog.Log($"{((IntPtr)layout->Manager).ToString("X")}");
-			
 			GetHoverObjectHook = new Hook<GetHoverObjectDelegate>(
 				SigScanner.ScanText("40 55 41 55 48 8D 6C 24 ?? 48 81 EC 38 01 00 00"),
 				GetHoverObject
@@ -125,9 +122,16 @@ namespace ProperHousing {
 				}
 			}
 			
+			var objIndex = -1;
+			for(int i = 0; i < 400; i++)
+				if((ulong)zone->Objects[i] == (ulong)obj) {
+					objIndex = i;
+					break;
+				}
+			
 			var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj->ID)?.ModelKey : houseSheet?.GetRow(obj->ID)?.ModelKey;
 			var p = ImGui.GetMousePos() - new Vector2(0, ImGui.GetFontSize() * 2);
-			var str = $"({modelkey}) {obj->Name}";
+			var str = $"({modelkey}) ({objIndex}) {obj->Name}";
 			draw.AddText(p, 0xFF000000, str);
 			draw.AddText(p - Vector2.One, 0xFF0000FF, str);
 			
@@ -146,6 +150,10 @@ namespace ProperHousing {
 			if(zone == null)
 				return IntPtr.Zero;
 			
+			// Dont run for outside, we dont know which furniture we own
+			if(housing->IsOutdoor)
+				return GetHoverObjectHook.Original(ptr);
+			
 			// Dont run if we are previewing a object
 			if(layout->Manager->PreviewMode)
 				return GetHoverObjectHook.Original(ptr);
@@ -153,18 +161,15 @@ namespace ProperHousing {
 			var origin = camera->Pos;
 			GameGui.ScreenToWorld(ImGui.GetMousePos(), out var target);
 			var dir = Vector3.Normalize(target - origin);
-			var range = Vector3.Distance(origin, target);
 			
 			var curobj = IntPtr.Zero;
-			var distance = float.MaxValue;
+			var distance = Vector3.Distance(origin, target);
 			
 			void CheckFurniture(Furniture* obj) {
-				if(Collides(obj, ref origin, ref dir, range, out var dist))
-					if(dist < distance) {
-						// PluginLog.Log(obj.Value.Name);
-						curobj = obj->Item;
-						distance = dist;
-					}
+				if(Collides(obj, ref origin, ref dir, distance, out var dist)) {
+					curobj = obj->Item;
+					distance = dist;
+				}
 			}
 			
 			var count = housing->IsOutdoor ? 40 : 400;
@@ -181,9 +186,6 @@ namespace ProperHousing {
 				CheckFurniture(housing->CurrentZone()->OutdoorGhostObject);
 			if(!housing->IsOutdoor && housing->CurrentZone()->IndoorGhostObject != null && housing->CurrentZone()->IndoorActiveObject == null)
 				CheckFurniture(housing->CurrentZone()->IndoorGhostObject);
-			
-			if(distance > range)
-				return IntPtr.Zero;
 			
 			return curobj;
 		}
@@ -301,8 +303,8 @@ namespace ProperHousing {
 				
 				var str = cur.ToString();
 				if(str.EndsWith(".sgb"))
-					paths.Concat(GetModelPaths(str)).ToList();
-				if(str.EndsWith(".mdl"))
+					paths = paths.Concat(GetModelPaths(str)).ToList();
+				else if(str.EndsWith(".mdl"))
 					paths.Add(str);
 				cur.Clear();
 			}

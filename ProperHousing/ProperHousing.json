@@ -2,7 +2,7 @@
 	"Author": "Sevii",
 	"Name": "Better Housing",
 	"Punchline": "Furniture selection that actually works properly",
-	"Description": "Select furniture based on what you see instead of a massive box. Always active for both indoors and outdoors, there's no config menu.",
+	"Description": "Select furniture based on what you see instead of a massive box. Always active indoors, doens't work outdoors, there's no config menu.",
 	"InternalName": "ProperHousing",
 	"ApplicableVersion": "any",
 	"DalamudApiLevel": 6,
