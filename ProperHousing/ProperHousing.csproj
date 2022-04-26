@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 		<Authors>Sevii</Authors>
-		<Version>1.0.2</Version>
+		<Version>1.0.3</Version>
 	</PropertyGroup>
 	
 	<PropertyGroup>
@@ -31,11 +31,15 @@
 		</Reference>
 		<Reference Include="Lumina">
 			<HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
-			<Private>False</Private>
+			<Private>false</Private>
 		</Reference>
 		<Reference Include="Lumina.Excel">
 			<HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
-			<Private>False</Private>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="SharpDX.Mathematics">
+			<HintPath>$(DalamudLibPath)SharpDX.Mathematics.dll</HintPath>
+			<Private>false</Private>
 		</Reference>
 	</ItemGroup>
 </Project>

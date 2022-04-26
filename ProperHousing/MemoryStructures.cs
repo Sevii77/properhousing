@@ -4,15 +4,6 @@ using System.Runtime.InteropServices;
 
 namespace ProperHousing {
 	[StructLayout(LayoutKind.Explicit)]
-	public unsafe struct Camera {
-		[FieldOffset(0x1B0)] public float X;
-		[FieldOffset(0x1B4)] public float Y;
-		[FieldOffset(0x1B8)] public float Z;
-		
-		public Vector3 Pos => new Vector3(X, Y, Z);
-	}
-	
-	[StructLayout(LayoutKind.Explicit)]
 	public unsafe struct Housing {
 		[FieldOffset(0x08)] public HousingManager* Outdoor;
 		[FieldOffset(0x10)] public HousingManager* Indoor;

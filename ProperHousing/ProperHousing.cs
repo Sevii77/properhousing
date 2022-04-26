@@ -1,6 +1,8 @@
 // TODO: support bones, should fix the the offsets on certain furniture and animated furniture
 
 using System;
+using System.IO;
+using System.Text;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
@@ -13,6 +15,7 @@ using Dalamud.Plugin;
 using Dalamud.Logging;
 using Dalamud.Data;
 using Dalamud.Hooking;
+using Dalamud.Interface;
 using Dalamud.Game.Gui;
 using Dalamud.Game.Command;
 
@@ -20,8 +23,6 @@ using Lumina.Excel.GeneratedSheets;
 using Lumina.Data;
 using Lumina.Data.Files;
 using Lumina.Models.Models;
-using System.IO;
-using System.Text;
 
 namespace ProperHousing {
 	public class ProperHousing : IDalamudPlugin {
@@ -49,11 +50,12 @@ namespace ProperHousing {
 		private Dictionary<(bool, ushort), (List<Vector3[]>, (Vector3, Vector3))> meshCache;
 		private Lumina.Excel.ExcelSheet<HousingFurniture>? houseSheet;
 		private Lumina.Excel.ExcelSheet<HousingYardObject>? houseSheetOutdoor;
-		private Lumina.Excel.ExcelSheet<Item>? itemSheet;
 		private unsafe Housing* housing;
 		private unsafe Layout* layout;
-		private unsafe Camera* camera;
 		private bool debugDraw = false;
+		
+		private delegate IntPtr GetMatrixSingletonDelegate();
+		private GetMatrixSingletonDelegate GetMatrixSingleton;
 		
 		private delegate IntPtr GetHoverObjectDelegate(IntPtr ptr);
 		private Hook<GetHoverObjectDelegate> GetHoverObjectHook;
@@ -63,11 +65,12 @@ namespace ProperHousing {
 			
 			houseSheet = DataManager.GetExcelSheet<HousingFurniture>();
 			houseSheetOutdoor = DataManager.GetExcelSheet<HousingYardObject>();
-			itemSheet = DataManager.GetExcelSheet<Item>();
 			
 			housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("40 53 48 83 EC 20 33 DB 48 39 1D ?? ?? ?? ?? 75 2C 45 33 C0 33 D2 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 11 48 8B C8 E8 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ?? EB 07", 0xA));
 			layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 85 C9 74 ?? 48 8B 49 40 E9 ?? ?? ?? ??", 2));
-			camera = (Camera*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8D 35 ?? ?? ?? ?? 48 8B 09"));
+			
+			GetMatrixSingleton = Marshal.GetDelegateForFunctionPointer<GetMatrixSingletonDelegate>(
+				SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8D 4C 24 ?? 48 89 4c 24 ?? 4C 8D 4D ?? 4C 8D 44 24 ??"));
 			
 			GetHoverObjectHook = new Hook<GetHoverObjectDelegate>(
 				SigScanner.ScanText("40 55 41 55 48 8D 6C 24 ?? 48 81 EC 38 01 00 00"),
@@ -158,8 +161,40 @@ namespace ProperHousing {
 			if(layout->Manager->PreviewMode)
 				return GetHoverObjectHook.Original(ptr);
 			
-			var origin = camera->Pos;
-			GameGui.ScreenToWorld(ImGui.GetMousePos(), out var target);
+			// var origin = camera->Pos;
+			var screenpos = ImGui.GetMousePos();
+			var origin = Vector3.Zero;
+			{ // Get camera origin
+			  // https://github.com/goatcorp/Dalamud/blob/dd0159ae5a2174819c1541644e5cdbd4ddd98a1d/Dalamud/Game/Gui/GameGui.cs#L243
+				var windowPos = ImGuiHelpers.MainViewport.Pos;
+				var windowSize = ImGuiHelpers.MainViewport.Size;
+				
+				var matrixSingleton = GetMatrixSingleton();
+				
+				var viewProjectionMatrix = default(SharpDX.Matrix);
+				var rawMatrix = (float*)(matrixSingleton + 0x1b4).ToPointer();
+				for(var i = 0; i < 16; i++, rawMatrix++)
+					viewProjectionMatrix[i] = *rawMatrix;
+				
+				var width = *rawMatrix;
+				var height = *(rawMatrix + 1);
+				
+				viewProjectionMatrix.Invert();
+				
+				var localScreenPos = new SharpDX.Vector2(screenpos.X - windowPos.X, screenpos.Y - windowPos.Y);
+				var screenPos3D = new SharpDX.Vector3{
+					X = (localScreenPos.X / width * 2.0f) - 1.0f,
+					Y = -((localScreenPos.Y / height * 2.0f) - 1.0f),
+					Z = 0,
+				};
+				
+				SharpDX.Vector3.TransformCoordinate(ref screenPos3D, ref viewProjectionMatrix, out var p);
+				origin.X = p.X;
+				origin.Y = p.Y;
+				origin.Z = p.Z;
+			}
+			
+			GameGui.ScreenToWorld(screenpos, out var target);
 			var dir = Vector3.Normalize(target - origin);
 			
 			var curobj = IntPtr.Zero;
