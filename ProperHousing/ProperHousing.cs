@@ -37,28 +37,23 @@ namespace ProperHousing {
 		private readonly List<Mesh.MeshType> bannedMeshTypes = new List<Mesh.MeshType> {
 			Mesh.MeshType.LightShaft, // fuck you lightshafts, your the main reason i made this
 		};
-		// Some model vertices are offset from what we see, probably some funky bone stuff idk
-		// TODO: find a better solution
-		private readonly Dictionary<ushort, Vector3> modelOffsets = new Dictionary<ushort, Vector3> {
-			{633, new Vector3(0, 0, -0.2f)}, // Stage Panel
-			{571, new Vector3(0, 0.4f, 0)}, // Hingan Chochin Lantern
-		};
 		
 		public string Name => "Better Housing";
 		private const string command = "/properhousing";
 		
-		private Dictionary<(bool, ushort), (List<Vector3[]>, (Vector3, Vector3))> meshCache;
+		private Dictionary<(bool, ushort), List<(List<Vector3[]>, (Vector3, Vector3))>> meshCache;
 		private Lumina.Excel.ExcelSheet<HousingFurniture>? houseSheet;
 		private Lumina.Excel.ExcelSheet<HousingYardObject>? houseSheetOutdoor;
+		private unsafe Camera* camera;
 		private unsafe Housing* housing;
 		private unsafe Layout* layout;
 		private bool debugDraw = false;
 		
-		private delegate IntPtr GetMatrixSingletonDelegate();
-		private GetMatrixSingletonDelegate GetMatrixSingleton;
-		
 		private delegate IntPtr GetHoverObjectDelegate(IntPtr ptr);
 		private Hook<GetHoverObjectDelegate> GetHoverObjectHook;
+		
+		// private unsafe delegate void AnimationDelegate(IntPtr ptr, float* transform);
+		// private Hook<AnimationDelegate> AnimationHook;
 		
 		public unsafe ProperHousing(DalamudPluginInterface pluginInterface) {
 			meshCache = new();
@@ -66,18 +61,25 @@ namespace ProperHousing {
 			houseSheet = DataManager.GetExcelSheet<HousingFurniture>();
 			houseSheetOutdoor = DataManager.GetExcelSheet<HousingYardObject>();
 			
+			camera = (Camera*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("4C 8D 35 ?? ?? ?? ?? 85 D2"));
 			housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("40 53 48 83 EC 20 33 DB 48 39 1D ?? ?? ?? ?? 75 2C 45 33 C0 33 D2 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 11 48 8B C8 E8 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ?? EB 07", 0xA));
 			layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 85 C9 74 ?? 48 8B 49 40 E9 ?? ?? ?? ??", 2));
 			
-			GetMatrixSingleton = Marshal.GetDelegateForFunctionPointer<GetMatrixSingletonDelegate>(
-				SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8D 4C 24 ?? 48 89 4c 24 ?? 4C 8D 4D ?? 4C 8D 44 24 ??"));
+			PluginLog.Log($"{((IntPtr)(camera)).ToString("X")}");
+			PluginLog.Log($"{((IntPtr)(housing)).ToString("X")}");
+			PluginLog.Log($"{((IntPtr)(layout)).ToString("X")}");
 			
-			GetHoverObjectHook = new Hook<GetHoverObjectDelegate>(
+			GetHoverObjectHook = Hook<GetHoverObjectDelegate>.FromAddress(
 				SigScanner.ScanText("40 55 41 55 48 8D 6C 24 ?? 48 81 EC 38 01 00 00"),
 				GetHoverObject
 			);
-			
 			GetHoverObjectHook.Enable();
+			
+			// AnimationHook = Hook<AnimationDelegate>.FromAddress(
+			// 	SigScanner.ScanText("48 89 5C 24 ?? 57 48 83 EC 60 48 8B D9 48 8B FA"),
+			// 	Animator
+			// );
+			// AnimationHook.Enable();
 			
 			Interface.UiBuilder.Draw += Draw;
 			
@@ -93,6 +95,7 @@ namespace ProperHousing {
 			Commands.RemoveHandler(command);
 			Interface.UiBuilder.Draw += Draw;
 			GetHoverObjectHook.Disable();
+			// AnimationHook.Disable();
 		}
 		
 		private unsafe void Draw() {
@@ -107,21 +110,59 @@ namespace ProperHousing {
 			if(obj == null)
 				return;
 			
+			// PluginLog.Log($"{((IntPtr)obj).ToString("X")}");
+			
 			var draw = ImGui.GetForegroundDrawList();
 			
 			var objmesh = GetMesh(obj);
 			if(objmesh != null) {
-				var rot = Quaternion.CreateFromYawPitchRoll(obj->Rotation, 0, 0);
-				var pos = obj->Pos;
-				
-				foreach(var tri in objmesh.Value.Item1) {
-					GameGui.WorldToScreen(Vector3.Transform(tri[0], rot) + pos, out var p1);
-					GameGui.WorldToScreen(Vector3.Transform(tri[1], rot) + pos, out var p2);
-					GameGui.WorldToScreen(Vector3.Transform(tri[2], rot) + pos, out var p3);
+				var segs = obj->ModelSegments(objmesh.Count);
+				for(int segI = 0; segI < segs.Length; segI++) {
+					var rot = segs[segI]->Rotation;
+					var pos = segs[segI]->Pos;
 					
-					draw.AddLine(p1, p2, 0xFFFFFFFF);
-					draw.AddLine(p2, p3, 0xFFFFFFFF);
-					draw.AddLine(p3, p1, 0xFFFFFFFF);
+					{ // bounding box
+						var bounds = objmesh[segI].Item2;
+						var pos1 = bounds.Item1;
+						var pos2 = bounds.Item2;
+						
+						GameGui.WorldToScreen(Vector3.Transform(new Vector3(pos1.X, pos1.Y, pos1.Z), rot) + pos, out var p1);
+						GameGui.WorldToScreen(Vector3.Transform(new Vector3(pos1.X, pos1.Y, pos2.Z), rot) + pos, out var p2);
+						GameGui.WorldToScreen(Vector3.Transform(new Vector3(pos2.X, pos1.Y, pos2.Z), rot) + pos, out var p3);
+						GameGui.WorldToScreen(Vector3.Transform(new Vector3(pos2.X, pos1.Y, pos1.Z), rot) + pos, out var p4);
+						GameGui.WorldToScreen(Vector3.Transform(new Vector3(pos1.X, pos2.Y, pos1.Z), rot) + pos, out var p5);
+						GameGui.WorldToScreen(Vector3.Transform(new Vector3(pos1.X, pos2.Y, pos2.Z), rot) + pos, out var p6);
+						GameGui.WorldToScreen(Vector3.Transform(new Vector3(pos2.X, pos2.Y, pos2.Z), rot) + pos, out var p7);
+						GameGui.WorldToScreen(Vector3.Transform(new Vector3(pos2.X, pos2.Y, pos1.Z), rot) + pos, out var p8);
+						
+						draw.AddLine(p1, p2, 0xFF0000FF);
+						draw.AddLine(p2, p3, 0xFF0000FF);
+						draw.AddLine(p3, p4, 0xFF0000FF);
+						draw.AddLine(p4, p1, 0xFF0000FF);
+						draw.AddLine(p5, p6, 0xFF0000FF);
+						draw.AddLine(p6, p7, 0xFF0000FF);
+						draw.AddLine(p7, p8, 0xFF0000FF);
+						draw.AddLine(p8, p5, 0xFF0000FF);
+						draw.AddLine(p1, p5, 0xFF0000FF);
+						draw.AddLine(p2, p6, 0xFF0000FF);
+						draw.AddLine(p3, p7, 0xFF0000FF);
+						draw.AddLine(p4, p8, 0xFF0000FF);
+					}
+					
+					foreach(var tri in objmesh[segI].Item1) {
+						GameGui.WorldToScreen(Vector3.Transform(tri[0], rot) + pos, out var p1);
+						GameGui.WorldToScreen(Vector3.Transform(tri[1], rot) + pos, out var p2);
+						GameGui.WorldToScreen(Vector3.Transform(tri[2], rot) + pos, out var p3);
+						
+						draw.AddLine(p1, p2, 0xFFFFFFFF);
+						draw.AddLine(p2, p3, 0xFFFFFFFF);
+						draw.AddLine(p3, p1, 0xFFFFFFFF);
+					}
+				}
+				
+				for(int i = 0; i < segs.Length; i++) {
+					GameGui.WorldToScreen(segs[i]->Pos, out var p1);
+					draw.AddCircle(p1, 5, 0xFF0000FF);
 				}
 			}
 			
@@ -134,7 +175,7 @@ namespace ProperHousing {
 			
 			var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj->ID)?.ModelKey : houseSheet?.GetRow(obj->ID)?.ModelKey;
 			var p = ImGui.GetMousePos() - new Vector2(0, ImGui.GetFontSize() * 2);
-			var str = $"({modelkey}) ({objIndex}) {obj->Name}";
+			var str = $"(mdl: {modelkey}) (idx: {objIndex}) {obj->Name}";
 			draw.AddText(p, 0xFF000000, str);
 			draw.AddText(p - Vector2.One, 0xFF0000FF, str);
 			
@@ -145,6 +186,10 @@ namespace ProperHousing {
 			draw.AddText(p, 0xFF000000, str);
 			draw.AddText(p - Vector2.One, 0xFF0000FF, str);
 		}
+		
+		// private unsafe void Animator(IntPtr ptr, float* transform) {
+		// 	AnimationHook.Original(ptr, transform);
+		// }
 		
 		private unsafe IntPtr GetHoverObject(IntPtr ptr) {
 			// return GetHoverObjectHook.Original(ptr);
@@ -163,36 +208,7 @@ namespace ProperHousing {
 			
 			// var origin = camera->Pos;
 			var screenpos = ImGui.GetMousePos();
-			var origin = Vector3.Zero;
-			{ // Get camera origin
-			  // https://github.com/goatcorp/Dalamud/blob/dd0159ae5a2174819c1541644e5cdbd4ddd98a1d/Dalamud/Game/Gui/GameGui.cs#L243
-				var windowPos = ImGuiHelpers.MainViewport.Pos;
-				var windowSize = ImGuiHelpers.MainViewport.Size;
-				
-				var matrixSingleton = GetMatrixSingleton();
-				
-				var viewProjectionMatrix = default(SharpDX.Matrix);
-				var rawMatrix = (float*)(matrixSingleton + 0x1b4).ToPointer();
-				for(var i = 0; i < 16; i++, rawMatrix++)
-					viewProjectionMatrix[i] = *rawMatrix;
-				
-				var width = *rawMatrix;
-				var height = *(rawMatrix + 1);
-				
-				viewProjectionMatrix.Invert();
-				
-				var localScreenPos = new SharpDX.Vector2(screenpos.X - windowPos.X, screenpos.Y - windowPos.Y);
-				var screenPos3D = new SharpDX.Vector3{
-					X = (localScreenPos.X / width * 2.0f) - 1.0f,
-					Y = -((localScreenPos.Y / height * 2.0f) - 1.0f),
-					Z = 0,
-				};
-				
-				SharpDX.Vector3.TransformCoordinate(ref screenPos3D, ref viewProjectionMatrix, out var p);
-				origin.X = p.X;
-				origin.Y = p.Y;
-				origin.Z = p.Z;
-			}
+			var origin = camera->Pos;
 			
 			GameGui.ScreenToWorld(screenpos, out var target);
 			var dir = Vector3.Normalize(target - origin);
@@ -202,7 +218,7 @@ namespace ProperHousing {
 			
 			void CheckFurniture(Furniture* obj) {
 				if(Collides(obj, ref origin, ref dir, distance, out var dist)) {
-					curobj = obj->Item;
+					curobj = (IntPtr)obj->Item;
 					distance = dist;
 				}
 			}
@@ -234,21 +250,20 @@ namespace ProperHousing {
 				// ohoh, we cant target this object
 				// TODO: aabb or obb check before this
 			
-			var rot = Quaternion.CreateFromYawPitchRoll(obj->Rotation, 0, 0);
-			var irot = Quaternion.Inverse(rot);
-			var pos = obj->Pos;
-			
-			// rotate ray to object space and check aabb
-			var bounds = objmesh.Value.Item2;
-			var rotatedOrigin = Vector3.Transform(origin - pos, irot);
-			var rotatedDir = Vector3.Transform(dir, irot);
-			if(!AABBIntersects(bounds.Item1, bounds.Item2, ref rotatedOrigin, ref rotatedDir, out var dist) || dist > range)
-				return false;
-			
-			// check if we intersect with any triangle
-			foreach(var tri in objmesh.Value.Item1)
-				if(Intersects(tri[0], tri[1], tri[2], ref rotatedOrigin, ref rotatedDir, out dist))
-					distance = Math.Min(distance, dist);
+			var segs = obj->ModelSegments(objmesh.Count);
+			for(int segI = 0; segI < segs.Length; segI++) {
+				var irot = Quaternion.Inverse(segs[segI]->Rotation);
+				var pos = segs[segI]->Pos;
+				
+				var bounds = objmesh[segI].Item2;
+				var rotatedOrigin = Vector3.Transform(origin - pos, irot);
+				var rotatedDir = Vector3.Transform(dir, irot);
+				
+				if(AABBIntersects(bounds.Item1, bounds.Item2, ref rotatedOrigin, ref rotatedDir, out var dist) && dist <= range)
+					foreach(var tri in objmesh[segI].Item1)
+						if(Intersects(tri[0], tri[1], tri[2], ref rotatedOrigin, ref rotatedDir, out dist))
+							distance = Math.Min(distance, dist);
+			}
 			
 			return distance < range;
 		}
@@ -339,7 +354,7 @@ namespace ProperHousing {
 				var str = cur.ToString();
 				if(str.EndsWith(".sgb"))
 					paths = paths.Concat(GetModelPaths(str)).ToList();
-				else if(str.EndsWith(".mdl"))
+				else if(str.EndsWith(".mdl") && !paths.Contains(str))
 					paths.Add(str);
 				cur.Clear();
 			}
@@ -349,7 +364,7 @@ namespace ProperHousing {
 			return paths;
 		}
 		
-		private unsafe (List<Vector3[]>, (Vector3, Vector3))? GetMesh(Furniture* obj) {
+		private unsafe List<(List<Vector3[]>, (Vector3, Vector3))>? GetMesh(Furniture* obj) {
 			var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj->ID)?.ModelKey : houseSheet?.GetRow(obj->ID)?.ModelKey;
 			if(!modelkey.HasValue)
 				return null;
@@ -358,16 +373,21 @@ namespace ProperHousing {
 			if(meshCache.ContainsKey(key))
 				return meshCache[key];
 			
-			var offset = modelOffsets.ContainsKey(modelkey.Value) ? modelOffsets[modelkey.Value] : Vector3.Zero;
-			
-			var affixedPaths = new List<string>();
-			GetModelPaths(housing->IsOutdoor ?
+			// var affixedPaths = new List<string>();
+			var affixedPaths = GetModelPaths(housing->IsOutdoor ?
 				$"bgcommon/hou/outdoor/general/{modelkey:D4}/asset/gar_b0_m{modelkey:D4}.sgb" :
-				$"bgcommon/hou/indoor/general/{modelkey:D4}/asset/fun_b0_m{modelkey:D4}.sgb").ForEach(path =>
+				$"bgcommon/hou/indoor/general/{modelkey:D4}/asset/fun_b0_m{modelkey:D4}.sgb")/*.ForEach(path =>
 					Array.ForEach(modelAffix, affix =>
-						affixedPaths.Add(path.Replace(".mdl", $"{affix}.mdl"))));
+						affixedPaths.Add(path.Replace(".mdl", $"{affix}.mdl"))))*/;
 			
-			var rtn = (new List<Vector3[]>(), (Vector3.Zero, Vector3.Zero));
+			if(houseSheet?.GetRow(obj->ID)?.AquariumTier > 0) // used because aquariums are scuffed
+				foreach(var affix in modelAffix) {
+					var path = $"bgcommon/hou/indoor/general/{modelkey:D4}/bgparts/fun_b0_m{modelkey:D4}{affix}.mdl";
+					if(!affixedPaths.Contains(path))
+						affixedPaths.Add(path);
+				}
+			
+			var rtn = new List<(List<Vector3[]>, (Vector3, Vector3))>();
 			foreach(var path in affixedPaths) {
 				var mdl = DataManager.GetFile<MdlFile>(path);
 				if(mdl == null)
@@ -375,16 +395,9 @@ namespace ProperHousing {
 				
 				PluginLog.Log($"Grabbing {path}");
 				
-				rtn.Item2.Item1.X = Math.Min(rtn.Item2.Item1.X, mdl.BoundingBoxes.Min[0] + offset.X);
-				rtn.Item2.Item1.Y = Math.Min(rtn.Item2.Item1.Y, mdl.BoundingBoxes.Min[1] + offset.Y);
-				rtn.Item2.Item1.Z = Math.Min(rtn.Item2.Item1.Z, mdl.BoundingBoxes.Min[2] + offset.Z);
-				rtn.Item2.Item2.X = Math.Max(rtn.Item2.Item2.X, mdl.BoundingBoxes.Max[0] + offset.X);
-				rtn.Item2.Item2.Y = Math.Max(rtn.Item2.Item2.Y, mdl.BoundingBoxes.Max[1] + offset.Y);
-				rtn.Item2.Item2.Z = Math.Max(rtn.Item2.Item2.Z, mdl.BoundingBoxes.Max[2] + offset.Z);
-				
+				var tris = new List<Vector3[]>();
 				var model = new Model(mdl, Model.ModelLod.High);
-				
-				foreach(var mesh in model.Meshes)
+				foreach(var mesh in model.Meshes) {
 					if(!mesh.Types.Any(x => bannedMeshTypes.Contains(x)))
 						for(int i = 0; i <= mesh.Indices.Length - 3; i += 3) {
 							try { // ?
@@ -392,16 +405,28 @@ namespace ProperHousing {
 								var p2 = mesh.Vertices[mesh.Indices[i + 1]].Position;
 								var p3 = mesh.Vertices[mesh.Indices[i + 2]].Position;
 								
-								rtn.Item1.Add(new Vector3[3] {
-									p1 == null ? Vector3.Zero : new Vector3(p1.Value.X, p1.Value.Y, p1.Value.Z) + offset,
-									p2 == null ? Vector3.Zero : new Vector3(p2.Value.X, p2.Value.Y, p2.Value.Z) + offset,
-									p3 == null ? Vector3.Zero : new Vector3(p3.Value.X, p3.Value.Y, p3.Value.Z) + offset,
+								tris.Add(new Vector3[3] {
+									p1 == null ? Vector3.Zero : new Vector3(p1.Value.X, p1.Value.Y, p1.Value.Z),
+									p2 == null ? Vector3.Zero : new Vector3(p2.Value.X, p2.Value.Y, p2.Value.Z),
+									p3 == null ? Vector3.Zero : new Vector3(p3.Value.X, p3.Value.Y, p3.Value.Z),
 								});
 							} catch {}
 						}
+				}
+				
+				if(tris.Count > 0)
+					rtn.Add((tris, (new Vector3(
+						mdl.BoundingBoxes.Min[0],
+						mdl.BoundingBoxes.Min[1],
+						mdl.BoundingBoxes.Min[2]
+					), new Vector3(
+						mdl.BoundingBoxes.Max[0],
+						mdl.BoundingBoxes.Max[1],
+						mdl.BoundingBoxes.Max[2]
+					))));
 			}
 			
-			if(rtn.Item1.Count == 0)
+			if(rtn.Count == 0)
 				return null;
 			
 			meshCache[key] = rtn;
