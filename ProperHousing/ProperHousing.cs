@@ -1,5 +1,3 @@
-// TODO: support bones, should fix the the offsets on certain furniture and animated furniture
-
 using System;
 using System.IO;
 using System.Text;
@@ -23,9 +21,10 @@ using Lumina.Excel.GeneratedSheets;
 using Lumina.Data;
 using Lumina.Data.Files;
 using Lumina.Models.Models;
+using Newtonsoft.Json;
 
 namespace ProperHousing {
-	public class ProperHousing : IDalamudPlugin {
+	public partial class ProperHousing : IDalamudPlugin {
 		[PluginService][RequiredVersion("1.0")] public static DalamudPluginInterface Interface   {get; private set;} = null!;
 		[PluginService][RequiredVersion("1.0")] public static CommandManager         Commands    {get; private set;} = null!;
 		[PluginService][RequiredVersion("1.0")] public static SigScanner             SigScanner  {get; private set;} = null!;
@@ -39,7 +38,7 @@ namespace ProperHousing {
 		};
 		
 		public string Name => "Better Housing";
-		private const string command = "/properhousing";
+		private const string command = "/betterhousing";
 		
 		private Dictionary<(bool, ushort), List<(List<Vector3[]>, (Vector3, Vector3))>> meshCache;
 		private Lumina.Excel.ExcelSheet<HousingFurniture>? houseSheet;
@@ -47,16 +46,50 @@ namespace ProperHousing {
 		private unsafe Camera* camera;
 		private unsafe Housing* housing;
 		private unsafe Layout* layout;
+		private unsafe int* scroll;
+		private int lastScroll;
+		private int scrollDelta = 0;
+		
 		private bool debugDraw = false;
+		private bool confDraw = true;
+		
+		private Config config;
 		
 		private delegate IntPtr GetHoverObjectDelegate(IntPtr ptr);
 		private Hook<GetHoverObjectDelegate> GetHoverObjectHook;
 		
+		private unsafe delegate void CameraZoomHandlerDelegate(Camera* camera, int unk, int unk2, ulong unk3);
+		private Hook<CameraZoomHandlerDelegate> CameraZoomHandlerHook;
+		
 		// private unsafe delegate void AnimationDelegate(IntPtr ptr, float* transform);
 		// private Hook<AnimationDelegate> AnimationHook;
 		
+		private struct Config {
+			public Bind MoveMode;
+			public Bind RotateMode;
+			public Bind RemoveMode;
+			public Bind StoreMode;
+			public Bind CounterToggle;
+			public Bind GridToggle;
+			
+			public Config() {
+				MoveMode = new();
+				RotateMode = new();
+				RemoveMode = new();
+				StoreMode = new();
+				CounterToggle = new();
+				GridToggle = new();
+			}
+			
+			public void Save() {
+				File.WriteAllText(Interface.ConfigFile.FullName, JsonConvert.SerializeObject(this));
+			}
+		}
+		
 		public unsafe ProperHousing(DalamudPluginInterface pluginInterface) {
+			config = Interface.ConfigFile.Exists ? JsonConvert.DeserializeObject<Config>(File.ReadAllText(Interface.ConfigFile.FullName)) : new();
 			meshCache = new();
+			keyStates = new byte[256];
 			
 			houseSheet = DataManager.GetExcelSheet<HousingFurniture>();
 			houseSheetOutdoor = DataManager.GetExcelSheet<HousingYardObject>();
@@ -64,6 +97,15 @@ namespace ProperHousing {
 			camera = (Camera*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("4C 8D 35 ?? ?? ?? ?? 85 D2"));
 			housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("40 53 48 83 EC 20 33 DB 48 39 1D ?? ?? ?? ?? 75 2C 45 33 C0 33 D2 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 11 48 8B C8 E8 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ?? EB 07", 0xA));
 			layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 85 C9 74 ?? 48 8B 49 40 E9 ?? ?? ?? ??", 2));
+			
+			// Get scroll state int, idk if this is a good idea. dinput8 shouldnt change between updates, right?
+			var modules = System.Diagnostics.Process.GetCurrentProcess().Modules;
+			for(int i = 0; i < modules.Count; i++)
+				if(modules[i].ModuleName == "DINPUT8.dll") {
+					scroll = (int*)(modules[i].BaseAddress + 0x3E0E8);
+					lastScroll = *scroll;
+					break;
+				}
 			
 			PluginLog.Log($"{((IntPtr)(camera)).ToString("X")}");
 			PluginLog.Log($"{((IntPtr)(housing)).ToString("X")}");
@@ -75,6 +117,12 @@ namespace ProperHousing {
 			);
 			GetHoverObjectHook.Enable();
 			
+			CameraZoomHandlerHook = Hook<CameraZoomHandlerDelegate>.FromAddress(
+				SigScanner.ScanText("48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 83 B9 ?? ?? ?? ?? 01 41 8B F8"),
+				CameraZoomHandler
+			);
+			CameraZoomHandlerHook.Enable();
+			
 			// AnimationHook = Hook<AnimationDelegate>.FromAddress(
 			// 	SigScanner.ScanText("48 89 5C 24 ?? 57 48 83 EC 60 48 8B D9 48 8B FA"),
 			// 	Animator
@@ -84,8 +132,13 @@ namespace ProperHousing {
 			Interface.UiBuilder.Draw += Draw;
 			
 			Commands.AddHandler(command, new CommandInfo((cmd, args) => {
-				if(cmd == command && args == "debug")
+				if(cmd != command)
+					return;
+				
+				if(args == "debug")
 					debugDraw = !debugDraw;
+				else
+					confDraw = !confDraw;
 			}) {
 				ShowInHelp = false
 			});
@@ -95,13 +148,22 @@ namespace ProperHousing {
 			Commands.RemoveHandler(command);
 			Interface.UiBuilder.Draw += Draw;
 			GetHoverObjectHook.Disable();
+			CameraZoomHandlerHook.Disable();
 			// AnimationHook.Disable();
 		}
 		
 		private unsafe void Draw() {
-			if(!debugDraw)
-				return;
+			if(confDraw)
+				DrawConf();
 			
+			if(debugDraw)
+				DrawDebug();
+			
+			scrollDelta = (*scroll - lastScroll) / 120;
+			lastScroll = *scroll;
+		}
+		
+		private unsafe void DrawDebug() {
 			var zone = housing->CurrentZone();
 			if(zone == null)
 				return;
@@ -119,7 +181,7 @@ namespace ProperHousing {
 				var segs = obj->ModelSegments(objmesh.Count);
 				for(int segI = 0; segI < segs.Length; segI++) {
 					var rot = segs[segI]->Rotation;
-					var pos = segs[segI]->Pos;
+					var pos = segs[segI]->Position;
 					
 					{ // bounding box
 						var bounds = objmesh[segI].Item2;
@@ -161,7 +223,7 @@ namespace ProperHousing {
 				}
 				
 				for(int i = 0; i < segs.Length; i++) {
-					GameGui.WorldToScreen(segs[i]->Pos, out var p1);
+					GameGui.WorldToScreen(segs[i]->Position, out var p1);
 					draw.AddCircle(p1, 5, 0xFF0000FF);
 				}
 			}
@@ -185,6 +247,23 @@ namespace ProperHousing {
 			p += new Vector2(0, ImGui.GetFontSize());
 			draw.AddText(p, 0xFF000000, str);
 			draw.AddText(p - Vector2.One, 0xFF0000FF, str);
+		}
+		
+		private unsafe void CameraZoomHandler(Camera* camera, int unk, int unk2, ulong unk3) {
+			if(layout->Manager->ActiveItem != null && ImGui.IsKeyDown(ImGuiKey.LeftShift)) {
+				if(scrollDelta != 0) {
+					// layout->Manager->ActiveItem->Rotation *= Quaternion.CreateFromYawPitchRoll(scrollDelta * 15 / 180f * (float)Math.PI, 0, 0);
+					var r = &layout->Manager->ActiveItem->Rotation;
+					var drag = (360 / 15f);
+					var rot = Math.Round((Math.Atan2(r->W, r->Y) / Math.PI * drag + scrollDelta * 15 / drag));
+					r->Y = (float)Math.Cos(rot / drag * Math.PI);
+					r->W = (float)Math.Sin(rot / drag * Math.PI);
+				}
+				
+				return;
+			}
+			
+			CameraZoomHandlerHook.Original(camera, unk, unk2, unk3);
 		}
 		
 		// private unsafe void Animator(IntPtr ptr, float* transform) {
@@ -253,7 +332,7 @@ namespace ProperHousing {
 			var segs = obj->ModelSegments(objmesh.Count);
 			for(int segI = 0; segI < segs.Length; segI++) {
 				var irot = Quaternion.Inverse(segs[segI]->Rotation);
-				var pos = segs[segI]->Pos;
+				var pos = segs[segI]->Position;
 				
 				var bounds = objmesh[segI].Item2;
 				var rotatedOrigin = Vector3.Transform(origin - pos, irot);

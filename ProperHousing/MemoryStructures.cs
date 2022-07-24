@@ -84,7 +84,7 @@ namespace ProperHousing {
 				}
 				
 				try { // Wondrous Parfait breaks, TODO: fix that
-					var _ = l[i]->Pos;
+					var _ = l[i]->Position;
 				} catch {
 					l[i] = (FurnitureItemSegment*)this.Item;
 				}
@@ -96,6 +96,9 @@ namespace ProperHousing {
 	
 	[StructLayout(LayoutKind.Explicit)]
 	public unsafe struct FurnitureItem {
+		[FieldOffset(0x50)] public Vector3 Position;
+		[FieldOffset(0x60)] public Quaternion Rotation;
+		[FieldOffset(0x70)] public Vector3 Scale;
 		[FieldOffset(0x90)] public IntPtr Idk;
 	}
 	
@@ -131,7 +134,7 @@ namespace ProperHousing {
 		[FieldOffset(0x20)] public FurnitureItemSegment* LinkedPrev;
 		[FieldOffset(0x28)] public FurnitureItemSegment* LinkedNext;
 		
-		[FieldOffset(0x50)] public Vector3 Pos;
+		[FieldOffset(0x50)] public Vector3 Position;
 		[FieldOffset(0x60)] public Quaternion Rotation;
 		[FieldOffset(0x70)] public Vector3 Scale;
 		[FieldOffset(0x80)] public IntPtr Segments; // (8,ptr,8)[]
@@ -152,18 +155,22 @@ namespace ProperHousing {
 		Store = 6,
 	}
 	
-	[Flags]
-	public enum LayoutToggles: uint {
-		InHousingMode = 0x1,
-		Snap = 0x001,
-		Counter = 0x00001,
-	}
+	// [Flags]
+	// public enum LayoutToggles: uint {
+	// 	InHousingMode = 0x1,
+	// 	Snap = 0x001,
+	// 	Counter = 0x00001,
+	// }
 	
 	[StructLayout(LayoutKind.Explicit)]
 	public unsafe struct LayoutManager {
 		[FieldOffset(0x000)] public LayoutMode Mode;
-		[FieldOffset(0x010)] public IntPtr HoverItem;
+		[FieldOffset(0x010)] public FurnitureItem* HoverItem;
+		[FieldOffset(0x018)] public FurnitureItem* ActiveItem;
 		[FieldOffset(0x070)] public bool PreviewMode;
-		[FieldOffset(0x170)] public LayoutToggles Toggles;
+		// [FieldOffset(0x170)] public LayoutToggles Toggles;
+		[FieldOffset(0x170)] public bool HousingMode;
+		[FieldOffset(0x171)] public bool GridSnap;
+		[FieldOffset(0x172)] public bool Counter;
 	}
 }
