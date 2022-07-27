@@ -78,8 +78,8 @@ public partial class ProperHousing {
 		var obj = housing->IsOutdoor ? zone->OutdoorHoverObject : zone->IndoorHoverObject;
 		if(obj == null)
 			return;
-		
-		// PluginLog.Log($"{((IntPtr)obj).ToString("X")}");
+
+		// Dalamud.Logging.PluginLog.Log($"{((IntPtr)obj).ToString("X")}");
 		
 		var draw = ImGui.GetForegroundDrawList();
 		

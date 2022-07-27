@@ -65,7 +65,7 @@ public unsafe struct Furniture {
 			unsafe {
 				fixed(byte* a = &name[0]) {
 					var nam = (sbyte*)a;
-					return new String(nam, 0, 64);
+					return new String(nam, 0, 64).Split('\0')[0];
 				}
 			}
 		}
@@ -76,18 +76,23 @@ public unsafe struct Furniture {
 		if(this.Item->Idk == IntPtr.Zero)
 			return new FurnitureItemSegment*[0];
 		
+		var big = (ulong)Math.Pow((ulong)2, 44);
 		var l = new FurnitureItemSegment*[len];
 		for(var i = 0; i < len; i++) {
-			// TOOD: get rid of try catch, it eats performance
 			try {
-				l[i] = ((FurnitureItemIdk1*)Marshal.ReadIntPtr(this.Item->Idk + i * 8))->Idk->Idk->Idk->Piece->Segment;
-			} catch {
-				l[i] = ((FurnitureItemIdk4*)Marshal.ReadIntPtr(this.Item->Idk + i * 8))->Piece->Segment;
-			}
-			
-			try { // Wondrous Parfait breaks, TODO: fix that
+				var ptr = ((FurnitureItemIdk1*)Marshal.ReadIntPtr(this.Item->Idk + i * 8));
+				if(ptr->Idk->Idk != null && ((ulong)ptr->Idk->Idk) < big)
+					try {
+						l[i] = ptr->Idk->Idk->Idk->Piece->Segment;
+					} catch {
+						l[i] = ((FurnitureItemIdk4*)ptr)->Piece->Segment;
+					}
+				else
+					l[i] = ((FurnitureItemIdk4*)ptr)->Piece->Segment;
+				
 				var _ = l[i]->Position;
 			} catch {
+				// Dalamud.Logging.PluginLog.Log($"Failed: {this.Name} {(ulong)l[i]} {big}");
 				l[i] = (FurnitureItemSegment*)this.Item;
 			}
 		}

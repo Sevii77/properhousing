@@ -61,9 +61,6 @@ public partial class ProperHousing : IDalamudPlugin {
 	private unsafe delegate void CameraZoomHandlerDelegate(Camera* camera, int unk, int unk2, ulong unk3);
 	private Hook<CameraZoomHandlerDelegate> CameraZoomHandlerHook;
 	
-	// private unsafe delegate void AnimationDelegate(IntPtr ptr, float* transform);
-	// private Hook<AnimationDelegate> AnimationHook;
-	
 	public class Bind {
 		public bool Shift;
 		public bool Ctrl;
@@ -147,12 +144,6 @@ public partial class ProperHousing : IDalamudPlugin {
 			CameraZoomHandler
 		);
 		CameraZoomHandlerHook.Enable();
-		
-		// AnimationHook = Hook<AnimationDelegate>.FromAddress(
-		// 	SigScanner.ScanText("48 89 5C 24 ?? 57 48 83 EC 60 48 8B D9 48 8B FA"),
-		// 	Animator
-		// );
-		// AnimationHook.Enable();
 		
 		Interface.UiBuilder.Draw += Draw;
 		Interface.UiBuilder.OpenConfigUi += OpenConf;
@@ -269,10 +260,6 @@ public partial class ProperHousing : IDalamudPlugin {
 		
 		CameraZoomHandlerHook.Original(camera, unk, unk2, unk3);
 	}
-	
-	// private unsafe void Animator(IntPtr ptr, float* transform) {
-	// 	AnimationHook.Original(ptr, transform);
-	// }
 	
 	private unsafe IntPtr GetHoverObject(IntPtr ptr) {
 		if(!config.AccurateSelect)
