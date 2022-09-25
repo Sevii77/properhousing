@@ -72,28 +72,21 @@ public unsafe struct Furniture {
 	}
 	
 	// I've given up, this mess will have to do
-	public FurnitureItemSegment*[] ModelSegments(int len) {
-		if(this.Item->Idk == IntPtr.Zero)
-			return new FurnitureItemSegment*[0];
+	public FurnitureModelSegment*[] ModelSegments(int len) {
+		if(this.Item->Model == null || this.Item->Model->Pieces == IntPtr.Zero)
+			return new FurnitureModelSegment*[0];
 		
-		var big = (ulong)Math.Pow((ulong)2, 44);
-		var l = new FurnitureItemSegment*[len];
+		var l = new FurnitureModelSegment*[len];
 		for(var i = 0; i < len; i++) {
+			var ptr = ((FurnitureModelIdk*)Marshal.ReadIntPtr(this.Item->Model->Pieces + i * 8));
+			
+			// Super nasty hack since i dont want to figure out how to properly solve it
+			// TODO: properly solve it
 			try {
-				var ptr = ((FurnitureItemIdk1*)Marshal.ReadIntPtr(this.Item->Idk + i * 8));
-				if(ptr->Idk->Idk != null && ((ulong)ptr->Idk->Idk) < big)
-					try {
-						l[i] = ptr->Idk->Idk->Idk->Piece->Segment;
-					} catch {
-						l[i] = ((FurnitureItemIdk4*)ptr)->Piece->Segment;
-					}
-				else
-					l[i] = ((FurnitureItemIdk4*)ptr)->Piece->Segment;
-				
+				l[i] = ptr->Piece->Segment;
 				var _ = l[i]->Position;
 			} catch {
-				// Dalamud.Logging.PluginLog.Log($"Failed: {this.Name} {(ulong)l[i]} {big}");
-				l[i] = (FurnitureItemSegment*)this.Item;
+				l[i] = (FurnitureModelSegment*)this.Item;
 			}
 		}
 		
@@ -106,40 +99,30 @@ public unsafe struct FurnitureItem {
 	[FieldOffset(0x50)] public Vector3 Position;
 	[FieldOffset(0x60)] public Quaternion Rotation;
 	[FieldOffset(0x70)] public Vector3 Scale;
-	[FieldOffset(0x90)] public IntPtr Idk;
+	[FieldOffset(0x88)] public FurnitureModel* Model;
 }
 
 [StructLayout(LayoutKind.Explicit)]
-public unsafe struct FurnitureItemIdk1 {
-	[FieldOffset(0x10)] public FurnitureItemIdk2* Idk;
+public unsafe struct FurnitureModel {
+	[FieldOffset(0x90)] public IntPtr Pieces;
 }
 
 [StructLayout(LayoutKind.Explicit)]
-public unsafe struct FurnitureItemIdk2 {
-	[FieldOffset(0x90)] public FurnitureItemIdk3* Idk;
-}
-
-[StructLayout(LayoutKind.Explicit)]
-public unsafe struct FurnitureItemIdk3 {
-	[FieldOffset(0x00)] public FurnitureItemIdk4* Idk;
-}
-
-[StructLayout(LayoutKind.Explicit)]
-public unsafe struct FurnitureItemIdk4 {
-	[FieldOffset(0x10)] public FurnitureItemPiece* Piece;
+public unsafe struct FurnitureModelIdk {
+	[FieldOffset(0x10)] public FurnitureModelPiece* Piece;
 }
 
 // first param of (48 89 5C 24 ?? 57 48 83 EC 60 48 8B D9 48 8B FA)
 [StructLayout(LayoutKind.Explicit, Size = 0x110)]
-public unsafe struct FurnitureItemPiece {
-	[FieldOffset(0x30)] public FurnitureItemSegment* Segment;
+public unsafe struct FurnitureModelPiece {
+	[FieldOffset(0x30)] public FurnitureModelSegment* Segment;
 }
 
 [StructLayout(LayoutKind.Explicit)]
-public unsafe struct FurnitureItemSegment {
-	[FieldOffset(0x18)] public FurnitureItemSegment* LinkedRoot; // idk if root, but i assume so since its always the same address
-	[FieldOffset(0x20)] public FurnitureItemSegment* LinkedPrev;
-	[FieldOffset(0x28)] public FurnitureItemSegment* LinkedNext;
+public unsafe struct FurnitureModelSegment {
+	[FieldOffset(0x18)] public FurnitureModelSegment* LinkedRoot; // idk if root, but i assume so since its always the same address
+	[FieldOffset(0x20)] public FurnitureModelSegment* LinkedPrev;
+	[FieldOffset(0x28)] public FurnitureModelSegment* LinkedNext;
 	
 	[FieldOffset(0x50)] public Vector3 Position;
 	[FieldOffset(0x60)] public Quaternion Rotation;

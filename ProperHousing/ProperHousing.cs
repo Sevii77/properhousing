@@ -16,13 +16,13 @@ using Dalamud.Hooking;
 using Dalamud.Game.Gui;
 using Dalamud.Game.Command;
 
-using Lumina.Excel.GeneratedSheets;
 using Lumina.Data;
 using Lumina.Data.Files;
 using Lumina.Models.Models;
+using Lumina.Excel.GeneratedSheets;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 
 using Newtonsoft.Json;
-using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace ProperHousing;
 
@@ -60,6 +60,8 @@ public partial class ProperHousing : IDalamudPlugin {
 	
 	private unsafe delegate void CameraZoomHandlerDelegate(Camera* camera, int unk, int unk2, ulong unk3);
 	private Hook<CameraZoomHandlerDelegate> CameraZoomHandlerHook;
+	
+	private unsafe delegate IntPtr ReceiveEventDelegate(AtkEventListener* eventListener, ushort evt, uint which, void* eventData, void* inputData);
 	
 	public class Bind {
 		public bool Shift;
@@ -105,12 +107,12 @@ public partial class ProperHousing : IDalamudPlugin {
 			AccurateSelect = true;
 			RotateCounter = new(true, false, false, Key.WheelUp);
 			RotateClockwise = new(true, false, false, Key.WheelDown);
-			MoveMode = new(false, false, false, Key.Number1);
-			RotateMode = new(false, false, false, Key.Number2);
-			RemoveMode = new(false, false, false, Key.Number3);
-			StoreMode = new(false, false, false, Key.Number4);
-			CounterToggle = new(false, false, false, Key.Number5);
-			GridToggle = new(false, false, false, Key.Number6);
+			MoveMode = new(true, false, false, Key.Number1);
+			RotateMode = new(true, false, false, Key.Number2);
+			RemoveMode = new(true, false, false, Key.Number3);
+			StoreMode = new(true, false, false, Key.Number4);
+			CounterToggle = new(true, false, false, Key.Number5);
+			GridToggle = new(true, false, false, Key.Number6);
 		}
 		
 		public void Save() {
@@ -140,7 +142,7 @@ public partial class ProperHousing : IDalamudPlugin {
 		GetHoverObjectHook.Enable();
 		
 		CameraZoomHandlerHook = Hook<CameraZoomHandlerDelegate>.FromAddress(
-			SigScanner.ScanText("48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 83 B9 ?? ?? ?? ?? 01 41 8B F8"),
+			SigScanner.ScanText("E8 ?? ?? ?? ?? EB ?? F3 0F 10 83 ?? ?? ?? ?? 0F 2F 83 ?? ?? ?? ??"),
 			CameraZoomHandler
 		);
 		CameraZoomHandlerHook.Enable();
@@ -154,10 +156,14 @@ public partial class ProperHousing : IDalamudPlugin {
 			
 			if(args == "debug")
 				debugDraw = !debugDraw;
+			else if(args == "test collides")
+				TestCollides();
 			else
 				confDraw = !confDraw;
 		}) {
-			ShowInHelp = false
+			ShowInHelp = true,
+			HelpMessage = "Opens the configuration window"
+			
 		});
 	}
 	
@@ -167,7 +173,6 @@ public partial class ProperHousing : IDalamudPlugin {
 		Interface.UiBuilder.OpenConfigUi -= OpenConf;
 		GetHoverObjectHook.Disable();
 		CameraZoomHandlerHook.Disable();
-		// AnimationHook.Disable();
 	}
 	
 	private void OpenConf() {confDraw = true;}
@@ -175,8 +180,9 @@ public partial class ProperHousing : IDalamudPlugin {
 	private unsafe void Draw() {
 		InputHandler.Update();
 		
-		if(layout->Manager->HousingMode)
+		if(layout->Manager->HousingMode) {
 			HandleBinds();
+		}
 		
 		if(confDraw)
 			DrawConf();
@@ -208,47 +214,30 @@ public partial class ProperHousing : IDalamudPlugin {
 			}
 		}
 		
-		// Tried pressing the button, couldnt make it work. this scuffed sollution will have to do
-		var atk = AtkStage.GetSingleton()->RaptureAtkUnitManager->GetAddonByName("HousingLayout");
-		void setImg(uint id, bool state) {
-			var n = atk->GetNodeById(id)->GetComponent()->UldManager;
-			n.SearchNodeById(3)->ToggleVisibility(!state);
-			n.SearchNodeById(2)->ToggleVisibility(state);
+		void ToggleCheckbox(ushort index) {
+			var atk = AtkStage.GetSingleton()->RaptureAtkUnitManager->GetAddonByName("HousingLayout");
+			
+			var eventData = stackalloc void*[3];
+			eventData[0] = null;
+			eventData[1] = null;
+			eventData[2] = atk;
+			
+			var inputData = stackalloc void*[8];
+			for(var i = 0; i < 8; i++)
+				inputData[i] = null;
+			
+			var receiveEvent = Marshal.GetDelegateForFunctionPointer<ReceiveEventDelegate>(new IntPtr(atk->AtkEventListener.vfunc[2]))!;
+			receiveEvent(&atk->AtkEventListener, 25, index, eventData, inputData);
 		}
 		
-		void SetMode(LayoutMode mode) {
-			layout->Manager->Mode = mode;
-			
-			setImg(9,  mode == LayoutMode.Move);
-			setImg(10, mode == LayoutMode.Rotate);
-			setImg(11, mode == LayoutMode.Remove);
-			setImg(12, mode == LayoutMode.Store);
-			
-			atk->GetNodeById(4)->ToggleVisibility(mode == LayoutMode.Move);
-			atk->GetNodeById(5)->ToggleVisibility(mode == LayoutMode.Rotate);
-			atk->GetNodeById(6)->ToggleVisibility(mode == LayoutMode.Remove);
-			atk->GetNodeById(7)->ToggleVisibility(mode == LayoutMode.Store);
-		}
-		
-		if(config.MoveMode.Pressed()) SetMode(LayoutMode.Move);
-		if(config.RotateMode.Pressed()) SetMode(LayoutMode.Rotate);
+		if(config.MoveMode.Pressed()) ToggleCheckbox(1);
+		if(config.RotateMode.Pressed()) ToggleCheckbox(2);
 		if(!layout->Manager->PreviewMode) {
-			if(config.RemoveMode.Pressed()) SetMode(LayoutMode.Remove);
-			if(config.StoreMode.Pressed()) SetMode(LayoutMode.Store);
+			if(config.RemoveMode.Pressed()) ToggleCheckbox(3);
+			if(config.StoreMode.Pressed()) ToggleCheckbox(4);
 		}
-		
-		// this doesnt take effect until you (re)select the furniture, TODO: fix that
-		if(config.CounterToggle.Pressed()) {
-			var s = &layout->Manager->Counter;
-			*s = !*s;
-			setImg(13, *s);
-		}
-		
-		if(config.GridToggle.Pressed()) {
-			var s = &layout->Manager->GridSnap;
-			*s = !*s;
-			setImg(14, *s);
-		}
+		if(config.CounterToggle.Pressed()) ToggleCheckbox(5);
+		if(config.GridToggle.Pressed()) ToggleCheckbox(6);
 	}
 	
 	private unsafe void CameraZoomHandler(Camera* camera, int unk, int unk2, ulong unk3) {

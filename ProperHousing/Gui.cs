@@ -54,9 +54,7 @@ public partial class ProperHousing {
 		if(ImGui.Checkbox("Accurate Selection", ref config.AccurateSelect))
 			config.Save();
 		
-		ImGui.Text($"Keybinds (?)");
-		if(ImGui.IsItemHovered())
-			ImGui.SetTooltip("Keybinds to switch mode and toggle counter placement and grid snap.\nNOTE: buttons will become invisible if manually clicked,\nthey can still be clicked. This is a known issue");
+		ImGui.Text($"Keybinds");
 		
 		DrawKeybind("Rotate Counterclockwise", config.RotateCounter);
 		DrawKeybind("Rotate Clockwise", config.RotateClockwise);
@@ -78,7 +76,7 @@ public partial class ProperHousing {
 		var obj = housing->IsOutdoor ? zone->OutdoorHoverObject : zone->IndoorHoverObject;
 		if(obj == null)
 			return;
-
+		
 		// Dalamud.Logging.PluginLog.Log($"{((IntPtr)obj).ToString("X")}");
 		
 		var draw = ImGui.GetForegroundDrawList();
