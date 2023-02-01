@@ -53,11 +53,16 @@ public unsafe struct HousingManager {
 public unsafe struct Furniture {
 	[FieldOffset(0x30)] private fixed byte name[64];
 	[FieldOffset(0x80)] public uint ID;
-	[FieldOffset(0xA0)] public float X;
-	[FieldOffset(0xA4)] public float Y;
-	[FieldOffset(0xA8)] public float Z;
-	[FieldOffset(0xB0)] public float Rotation;
-	[FieldOffset(0xF8)] public FurnitureItem* Item;
+	// [FieldOffset(0xA0)] public float X;
+	// [FieldOffset(0xA4)] public float Y;
+	// [FieldOffset(0xA8)] public float Z;
+	// [FieldOffset(0xB0)] public float Rotation;
+	// [FieldOffset(0xF8)] public FurnitureItem* Item;
+	[FieldOffset(0xB0)] public float X;
+	[FieldOffset(0xB4)] public float Y;
+	[FieldOffset(0xB8)] public float Z;
+	[FieldOffset(0xC0)] public float Rotation;
+	[FieldOffset(0x108)] public FurnitureItem* Item;
 	
 	public Vector3 Pos => new Vector3(X, Y, Z);
 	public string Name {
@@ -85,7 +90,9 @@ public unsafe struct Furniture {
 			try {
 				l[i] = ptr->Piece->Segment;
 				var _ = l[i]->Position;
+				// Dalamud.Logging.PluginLog.Log($"- Success: {((IntPtr)ptr->Piece->Segment).ToString("X")}");
 			} catch {
+				// Dalamud.Logging.PluginLog.Log($"- Failed: {((IntPtr)ptr->Piece->Segment).ToString("X")}");
 				l[i] = (FurnitureModelSegment*)this.Item;
 			}
 		}

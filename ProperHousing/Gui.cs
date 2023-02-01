@@ -73,7 +73,26 @@ public partial class ProperHousing {
 		if(zone == null)
 			return;
 		
-		var obj = housing->IsOutdoor ? zone->OutdoorHoverObject : zone->IndoorHoverObject;
+		var screenpos = ImGui.GetMousePos();
+		var origin = camera->Pos;
+		
+		GameGui.ScreenToWorld(screenpos, out var target);
+		var dir = Vector3.Normalize(target - origin);
+		var distance = Vector3.Distance(origin, target);
+		
+		Furniture* obj = null;
+		for(int i = 0; i < 400; i++) {
+			var o = zone->Furniture(i);
+			if(o == null)
+				continue;
+			
+			if(Collides(o, ref origin, ref dir, distance, out var dist)) {
+				obj = o;
+				distance = dist;
+			}
+		}
+		
+		// var obj = housing->IsOutdoor ? zone->OutdoorHoverObject : zone->IndoorHoverObject;
 		if(obj == null)
 			return;
 		
@@ -87,6 +106,7 @@ public partial class ProperHousing {
 			for(int segI = 0; segI < segs.Length; segI++) {
 				var rot = segs[segI]->Rotation;
 				var pos = segs[segI]->Position;
+				var scale = segs[segI]->Scale * obj->Item->Scale;
 				
 				{ // bounding box
 					var bounds = objmesh[segI].Item2;
@@ -117,9 +137,9 @@ public partial class ProperHousing {
 				}
 				
 				foreach(var tri in objmesh[segI].Item1) {
-					GameGui.WorldToScreen(Vector3.Transform(tri[0], rot) + pos, out var p1);
-					GameGui.WorldToScreen(Vector3.Transform(tri[1], rot) + pos, out var p2);
-					GameGui.WorldToScreen(Vector3.Transform(tri[2], rot) + pos, out var p3);
+					GameGui.WorldToScreen(Vector3.Transform(tri[0] * scale, rot) + pos, out var p1);
+					GameGui.WorldToScreen(Vector3.Transform(tri[1] * scale, rot) + pos, out var p2);
+					GameGui.WorldToScreen(Vector3.Transform(tri[2] * scale, rot) + pos, out var p3);
 					
 					draw.AddLine(p1, p2, 0xFFFFFFFF);
 					draw.AddLine(p2, p3, 0xFFFFFFFF);

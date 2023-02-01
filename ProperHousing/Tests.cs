@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using Dalamud.Logging;
 
 namespace ProperHousing;
@@ -16,11 +17,15 @@ public partial class ProperHousing {
 			var objmesh = GetMesh(obj);
 			if(objmesh == null) {continue;}
 			
-			PluginLog.Log($"Testing {obj->Name} ({((IntPtr)obj).ToString("X")})");
+			// 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 50 48 8B E9 48 8B 49 ??
+			var mdloffsetidk = ((IntPtr)obj->Item + 0x80);
+			var count = (Marshal.PtrToStructure<ulong>(mdloffsetidk + 0x18) - Marshal.PtrToStructure<ulong>(mdloffsetidk + 0x10)) >> 3;
+			var idk = Marshal.ReadIntPtr(Marshal.ReadIntPtr(Marshal.ReadIntPtr(mdloffsetidk + 0x10) + 0) + 0x10) + 0x238;
+			PluginLog.Log($"Testing {obj->Name} ({((IntPtr)obj).ToString("X")}) ({count}) ({idk.ToString("X")})");
 			
 			var segs = obj->ModelSegments(objmesh.Count);
 			foreach(var seg in segs) {
-				PluginLog.Log($"{((IntPtr)seg).ToString("X")}");
+				// PluginLog.Log($"- {((IntPtr)seg).ToString("X")}");
 				var rot = seg->Rotation;
 				var pos = seg->Position;
 			}

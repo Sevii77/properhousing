@@ -128,8 +128,8 @@ public partial class ProperHousing : IDalamudPlugin {
 		houseSheetOutdoor = DataManager.GetExcelSheet<HousingYardObject>();
 		
 		camera = (Camera*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("4C 8D 35 ?? ?? ?? ?? 85 D2"));
-		housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("40 53 48 83 EC 20 33 DB 48 39 1D ?? ?? ?? ?? 75 2C 45 33 C0 33 D2 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 11 48 8B C8 E8 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ?? EB 07", 0xA));
-		layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 85 C9 74 ?? 48 8B 49 40 E9 ?? ?? ?? ??", 2));
+		housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("40 53 48 83 EC 20 33 DB 48 39 1D ?? ?? ?? ?? 75 2C 45 33 C0 33 D2 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 11 48 8B C8 E8 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ?? EB 07"));
+		layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 85 C9 74 ?? 48 8B 49 40 E9 ?? ?? ?? ??"));
 		
 		PluginLog.Log($"{((IntPtr)(camera)).ToString("X")}");
 		PluginLog.Log($"{((IntPtr)(housing)).ToString("X")}");
@@ -314,6 +314,8 @@ public partial class ProperHousing : IDalamudPlugin {
 		for(int segI = 0; segI < segs.Length; segI++) {
 			var irot = Quaternion.Inverse(segs[segI]->Rotation);
 			var pos = segs[segI]->Position;
+			// var scale = segs[segI]->Scale * obj->Item->Scale;
+			var scale = Vector3.One;
 			
 			var bounds = objmesh[segI].Item2;
 			var rotatedOrigin = Vector3.Transform(origin - pos, irot);
@@ -321,7 +323,7 @@ public partial class ProperHousing : IDalamudPlugin {
 			
 			if(AABBIntersects(bounds.Item1, bounds.Item2, ref rotatedOrigin, ref rotatedDir, out var dist) && dist <= range)
 				foreach(var tri in objmesh[segI].Item1)
-					if(Intersects(tri[0], tri[1], tri[2], ref rotatedOrigin, ref rotatedDir, out dist))
+					if(Intersects(tri[0] * scale, tri[1] * scale, tri[2] * scale, ref rotatedOrigin, ref rotatedDir, out dist))
 						distance = Math.Min(distance, dist);
 		}
 		

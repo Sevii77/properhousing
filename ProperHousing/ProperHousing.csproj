@@ -3,11 +3,11 @@
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 		<Authors>Sevii</Authors>
-		<Version>1.1.0</Version>
+		<Version>1.1.1</Version>
 	</PropertyGroup>
 	
 	<PropertyGroup>
-		<TargetFramework>net6.0-windows</TargetFramework>
+		<TargetFramework>net7.0-windows</TargetFramework>
 		<Platforms>x64</Platforms>
 		<Configuration>Release</Configuration>
 		<Nullable>enable</Nullable>
