@@ -215,6 +215,9 @@ public partial class ProperHousing : IDalamudPlugin {
 		}
 		
 		void ToggleCheckbox(ushort index) {
+			if(index != 0)
+				ToggleCheckbox(0);
+			
 			var atk = AtkStage.GetSingleton()->RaptureAtkUnitManager->GetAddonByName("HousingLayout");
 			
 			var eventData = stackalloc void*[3];
@@ -236,8 +239,8 @@ public partial class ProperHousing : IDalamudPlugin {
 			if(config.RemoveMode.Pressed()) ToggleCheckbox(3);
 			if(config.StoreMode.Pressed()) ToggleCheckbox(4);
 		}
-		if(config.CounterToggle.Pressed()) ToggleCheckbox(5);
-		if(config.GridToggle.Pressed()) ToggleCheckbox(6);
+		if(config.CounterToggle.Pressed()) ToggleCheckbox(6);
+		if(config.GridToggle.Pressed()) ToggleCheckbox(7);
 	}
 	
 	private unsafe void CameraZoomHandler(Camera* camera, int unk, int unk2, ulong unk3) {
