@@ -296,8 +296,8 @@ public partial class ProperHousing : IDalamudPlugin {
 		}
 		
 		// Placing a object from storeroom
-		if(housing->IsOutdoor && housing->CurrentZone()->OutdoorGhostObject != null && housing->CurrentZone()->OutdoorActiveObject == null)
-			CheckFurniture(housing->CurrentZone()->OutdoorGhostObject);
+		// if(housing->IsOutdoor && housing->CurrentZone()->OutdoorGhostObject != null && housing->CurrentZone()->OutdoorActiveObject == null)
+		// 	CheckFurniture(housing->CurrentZone()->OutdoorGhostObject);
 		if(!housing->IsOutdoor && housing->CurrentZone()->IndoorGhostObject != null && housing->CurrentZone()->IndoorActiveObject == null)
 			CheckFurniture(housing->CurrentZone()->IndoorGhostObject);
 		
