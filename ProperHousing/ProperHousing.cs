@@ -259,10 +259,10 @@ public partial class ProperHousing : IDalamudPlugin {
 		
 		var zone = housing->CurrentZone();
 		if(zone == null)
-			return IntPtr.Zero;
+			return GetHoverObjectHook.Original(ptr);
 		
 		// Dont run for outside, we dont know which furniture we own
-		if(housing->IsOutdoor)
+		if(!housing->IsIndoor)
 			return GetHoverObjectHook.Original(ptr);
 		
 		// Dont run if we are previewing a object
@@ -458,7 +458,7 @@ public partial class ProperHousing : IDalamudPlugin {
 			if(mdl == null)
 				continue;
 			
-			PluginLog.Log($"Grabbing {path}");
+			PluginLog.Log($"Grabbing {path}; element count: {mdl.ElementIds.Length}");
 			
 			var tris = new List<Vector3[]>();
 			var model = new Model(mdl, Model.ModelLod.High);

@@ -13,17 +13,19 @@ public unsafe struct Camera {
 	public Vector3 Pos => new Vector3(X, Y, Z);
 }
 
+// TODO: figure out what island sanctuary is doing so that can be supported
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct Housing {
 	[FieldOffset(0x08)] public HousingManager* Outdoor;
 	[FieldOffset(0x10)] public HousingManager* Indoor;
 	
 	public bool IsOutdoor => Outdoor != null;
+	public bool IsIndoor => Indoor != null;
 	
 	public HousingManager* CurrentZone() {
 		if(Outdoor != null)
 			return Outdoor;
-			
+		
 		if(Indoor != null)
 			return Indoor;
 		
@@ -156,6 +158,7 @@ public enum LayoutMode: uint {
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct LayoutManager {
 	[FieldOffset(0x000)] public LayoutMode Mode;
+	[FieldOffset(0x004)] public LayoutMode LastMode;
 	[FieldOffset(0x010)] public FurnitureItem* HoverItem;
 	[FieldOffset(0x018)] public FurnitureItem* ActiveItem;
 	[FieldOffset(0x070)] public bool PreviewMode;
