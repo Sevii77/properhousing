@@ -1,3 +1,5 @@
+global using Dalamud.Logging;
+
 using System;
 using System.IO;
 using System.Text;
@@ -10,11 +12,11 @@ using ImGuiNET;
 using Dalamud.IoC;
 using Dalamud.Game;
 using Dalamud.Plugin;
-using Dalamud.Logging;
 using Dalamud.Data;
 using Dalamud.Hooking;
 using Dalamud.Game.Gui;
 using Dalamud.Game.Command;
+using Dalamud.Plugin.Services;
 
 using Lumina.Data;
 using Lumina.Data.Files;
@@ -28,10 +30,12 @@ namespace ProperHousing;
 
 public partial class ProperHousing : IDalamudPlugin {
 	[PluginService][RequiredVersion("1.0")] public static DalamudPluginInterface Interface   {get; private set;} = null!;
-	[PluginService][RequiredVersion("1.0")] public static CommandManager         Commands    {get; private set;} = null!;
-	[PluginService][RequiredVersion("1.0")] public static SigScanner             SigScanner  {get; private set;} = null!;
-	[PluginService][RequiredVersion("1.0")] public static DataManager            DataManager {get; private set;} = null!;
-	[PluginService][RequiredVersion("1.0")] public static GameGui                GameGui     {get; private set;} = null!;
+	[PluginService][RequiredVersion("1.0")] public static ICommandManager        Commands    {get; private set;} = null!;
+	[PluginService][RequiredVersion("1.0")] public static ISigScanner            SigScanner  {get; private set;} = null!;
+	[PluginService][RequiredVersion("1.0")] public static IDataManager           DataManager {get; private set;} = null!;
+	[PluginService][RequiredVersion("1.0")] public static IGameGui               GameGui     {get; private set;} = null!;
+	[PluginService][RequiredVersion("1.0")] public static IGameInteropProvider   HookProv    {get; private set;} = null!;
+	[PluginService][RequiredVersion("1.0")] public static IPluginLog             Logger      {get; private set;} = null!;
 	
 	private readonly float epsilon = 0.0000001f;
 	private readonly string[] modelAffix = {"", "a", "b", "c", "d"};
@@ -131,20 +135,14 @@ public partial class ProperHousing : IDalamudPlugin {
 		housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("40 53 48 83 EC 20 33 DB 48 39 1D ?? ?? ?? ?? 75 2C 45 33 C0 33 D2 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 11 48 8B C8 E8 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ?? EB 07"));
 		layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 85 C9 74 ?? 48 8B 49 40 E9 ?? ?? ?? ??"));
 		
-		PluginLog.Log($"{((IntPtr)(camera)).ToString("X")}");
-		PluginLog.Log($"{((IntPtr)(housing)).ToString("X")}");
-		PluginLog.Log($"{((IntPtr)(layout)).ToString("X")}");
+		Logger.Debug($"{((IntPtr)(camera)).ToString("X")}");
+		Logger.Debug($"{((IntPtr)(housing)).ToString("X")}");
+		Logger.Debug($"{((IntPtr)(layout)).ToString("X")}");
 		
-		GetHoverObjectHook = Hook<GetHoverObjectDelegate>.FromAddress(
-			SigScanner.ScanText("40 55 41 55 48 8D 6C 24 ?? 48 81 EC 38 01 00 00"),
-			GetHoverObject
-		);
+		GetHoverObjectHook = HookProv.HookFromAddress<GetHoverObjectDelegate>(SigScanner.ScanText("40 55 41 55 48 8D 6C 24 ?? 48 81 EC 38 01 00 00"), GetHoverObject);
 		GetHoverObjectHook.Enable();
 		
-		CameraZoomHandlerHook = Hook<CameraZoomHandlerDelegate>.FromAddress(
-			SigScanner.ScanText("E8 ?? ?? ?? ?? EB ?? F3 0F 10 83 ?? ?? ?? ?? 0F 2F 83 ?? ?? ?? ??"),
-			CameraZoomHandler
-		);
+		CameraZoomHandlerHook = HookProv.HookFromAddress<CameraZoomHandlerDelegate>(SigScanner.ScanText("E8 ?? ?? ?? ?? EB ?? F3 0F 10 83 ?? ?? ?? ?? 0F 2F 83 ?? ?? ?? ??"), CameraZoomHandler);
 		CameraZoomHandlerHook.Enable();
 		
 		Interface.UiBuilder.Draw += Draw;
@@ -277,7 +275,7 @@ public partial class ProperHousing : IDalamudPlugin {
 		var dir = Vector3.Normalize(target - origin);
 		
 		var curobj = IntPtr.Zero;
-		var distance = Vector3.Distance(origin, target);
+		var distance = Vector3.Distance(origin, target) + 0.1f; // makes sure to not block object selection by the object's vanilla collision (happens in remove/storage mod for some)
 		
 		void CheckFurniture(Furniture* obj) {
 			if(Collides(obj, ref origin, ref dir, distance, out var dist)) {
@@ -313,8 +311,9 @@ public partial class ProperHousing : IDalamudPlugin {
 			// ohoh, we cant target this object
 			// TODO: aabb or obb check before this
 		
-		var segs = obj->ModelSegments(objmesh.Count);
-		for(int segI = 0; segI < segs.Length; segI++) {
+		// var segs = obj->ModelSegments(objmesh.Count);
+		var segs = obj->ModelSegments();
+		for(int segI = 0; segI < Math.Min(segs.Length, objmesh.Count); segI++) {
 			var irot = Quaternion.Inverse(segs[segI]->Rotation);
 			var pos = segs[segI]->Position;
 			// var scale = segs[segI]->Scale * obj->Item->Scale;
@@ -325,9 +324,10 @@ public partial class ProperHousing : IDalamudPlugin {
 			var rotatedDir = Vector3.Transform(dir, irot);
 			
 			if(AABBIntersects(bounds.Item1, bounds.Item2, ref rotatedOrigin, ref rotatedDir, out var dist) && dist <= range)
-				foreach(var tri in objmesh[segI].Item1)
+				foreach(var tri in objmesh[segI].Item1) {
 					if(Intersects(tri[0] * scale, tri[1] * scale, tri[2] * scale, ref rotatedOrigin, ref rotatedDir, out dist))
 						distance = Math.Min(distance, dist);
+				}
 		}
 		
 		return distance < range;
@@ -458,7 +458,7 @@ public partial class ProperHousing : IDalamudPlugin {
 			if(mdl == null)
 				continue;
 			
-			PluginLog.Log($"Grabbing {path}; element count: {mdl.ElementIds.Length}");
+			Logger.Info($"Grabbing {path}");
 			
 			var tris = new List<Vector3[]>();
 			var model = new Model(mdl, Model.ModelLod.High);
@@ -471,9 +471,9 @@ public partial class ProperHousing : IDalamudPlugin {
 							var p3 = mesh.Vertices[mesh.Indices[i + 2]].Position;
 							
 							tris.Add(new Vector3[3] {
-								p1 == null ? Vector3.Zero : new Vector3(p1.Value.X, p1.Value.Y, p1.Value.Z),
-								p2 == null ? Vector3.Zero : new Vector3(p2.Value.X, p2.Value.Y, p2.Value.Z),
-								p3 == null ? Vector3.Zero : new Vector3(p3.Value.X, p3.Value.Y, p3.Value.Z),
+								p1 == null ? Vector3.Zero : new Vector3(p1.Value.X, p1.Value.Y, p1.Value.Z), // / p1.Value.W,
+								p2 == null ? Vector3.Zero : new Vector3(p2.Value.X, p2.Value.Y, p2.Value.Z), // / p2.Value.W,
+								p3 == null ? Vector3.Zero : new Vector3(p3.Value.X, p3.Value.Y, p3.Value.Z), // / p3.Value.W,
 							});
 						} catch {}
 					}

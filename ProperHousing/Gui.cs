@@ -8,7 +8,7 @@ namespace ProperHousing;
 public partial class ProperHousing {
 	private Bind? selectBind;
 	
-	private unsafe void DrawConf() {
+	private void DrawConf() {
 		void DrawKeybind(string label, Bind bind) {
 			var shift = bind.Shift;
 			var ctrl = bind.Ctrl;
@@ -80,6 +80,7 @@ public partial class ProperHousing {
 		var dir = Vector3.Normalize(target - origin);
 		var distance = Vector3.Distance(origin, target);
 		
+		// var obj = housing->IsOutdoor ? zone->OutdoorHoverObject : zone->IndoorHoverObject;
 		Furniture* obj = null;
 		for(int i = 0; i < 400; i++) {
 			var o = zone->Furniture(i);
@@ -92,21 +93,21 @@ public partial class ProperHousing {
 			}
 		}
 		
-		// var obj = housing->IsOutdoor ? zone->OutdoorHoverObject : zone->IndoorHoverObject;
 		if(obj == null)
 			return;
 		
-		// Dalamud.Logging.PluginLog.Log($"{((IntPtr)obj).ToString("X")}");
-		
+		// draw bb and wireframe
 		var draw = ImGui.GetForegroundDrawList();
 		
 		var objmesh = GetMesh(obj);
 		if(objmesh != null) {
-			var segs = obj->ModelSegments(objmesh.Count);
-			for(int segI = 0; segI < segs.Length; segI++) {
+			// var segs = obj->ModelSegments(objmesh.Count);
+			var segs = obj->ModelSegments();
+			for(int segI = 0; segI < Math.Min(segs.Length, objmesh.Count); segI++) {
 				var rot = segs[segI]->Rotation;
 				var pos = segs[segI]->Position;
-				var scale = segs[segI]->Scale * obj->Item->Scale;
+				// var scale = segs[segI]->Scale * obj->Item->Scale;
+				var scale = Vector3.One;
 				
 				{ // bounding box
 					var bounds = objmesh[segI].Item2;
@@ -161,8 +162,8 @@ public partial class ProperHousing {
 			}
 		
 		var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj->ID)?.ModelKey : houseSheet?.GetRow(obj->ID)?.ModelKey;
-		var p = ImGui.GetMousePos() - new Vector2(0, ImGui.GetFontSize() * 2);
-		var str = $"(mdl: {modelkey}) (idx: {objIndex}) {obj->Name}";
+		var p = ImGui.GetMousePos() - new Vector2(0, ImGui.GetFontSize() * 3);
+		var str = $"{obj->Name} (index: {objIndex}) (pieces: {obj->Item->PiecesCount})";
 		draw.AddText(p, 0xFF000000, str);
 		draw.AddText(p - Vector2.One, 0xFF0000FF, str);
 		
@@ -172,5 +173,19 @@ public partial class ProperHousing {
 		p += new Vector2(0, ImGui.GetFontSize());
 		draw.AddText(p, 0xFF000000, str);
 		draw.AddText(p - Vector2.One, 0xFF0000FF, str);
+		
+		str = ((IntPtr)obj).ToString("X");
+		p += new Vector2(0, ImGui.GetFontSize());
+		draw.AddText(p, 0xFF000000, str);
+		draw.AddText(p - Vector2.One, 0xFF0000FF, str);
+		
+		if(new Bind(true, true, false, Key.C).Pressed()) {
+			// linq doesnt like pointers, fucking shit language dont @ me
+			var s = new System.Collections.Generic.List<String>();
+			foreach(var v in obj->Item->Pieces())
+				s.Add(((IntPtr)v).ToString("X"));
+			InputHandler.SetClipboard(String.Join(" ", s));
+		} else if(new Bind(false, true, false, Key.C).Pressed())
+			InputHandler.SetClipboard(str);
 	}
 }

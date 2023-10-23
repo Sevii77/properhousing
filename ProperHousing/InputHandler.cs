@@ -189,11 +189,11 @@ public class InputHandler {
 		keyStates = new byte[256];
 		keyStatesLast = new byte[256];
 		
-		// Get scroll state int, idk if this is a good idea. dinput8 shouldnt change between updates, right?
+		// Get scroll state int, not the best idea, apparently it changes sometimes
 		var modules = System.Diagnostics.Process.GetCurrentProcess().Modules;
 		for(int i = 0; i < modules.Count; i++)
 			if(modules[i].ModuleName == "DINPUT8.dll") {
-				scrollPtr = (int*)(modules[i].BaseAddress + 0x3E0E8);
+				scrollPtr = (int*)(modules[i].BaseAddress + 0x3F128);
 				break;
 			}
 		
@@ -209,7 +209,7 @@ public class InputHandler {
 		scroll = *scrollPtr;
 	}
 	
-	public static unsafe bool KeyPressed(Key key) {
+	public static bool KeyPressed(Key key) {
 		return key == Key.WheelUp ? scroll > lastScroll :
 		       key == Key.WheelDown ? scroll < lastScroll :
 		       keyStates[(int)key] > 1 && keyStates[(int)key] != keyStatesLast[(int)key];
@@ -217,6 +217,22 @@ public class InputHandler {
 	
 	public static int ScrollDelta => (int)Math.Ceiling((scroll - lastScroll) / 120f);
 	
+	public static void SetClipboard(string text) {
+		OpenClipboard(IntPtr.Zero);
+		var ptr = Marshal.StringToHGlobalUni(text);
+		SetClipboardData(13, ptr);
+		CloseClipboard();
+		// SetClipboardData owns the data allocated to ptr, there are ways to free it at a later date but we'll leak it because i don't care
+		// Marshal.FreeHGlobal(ptr);
+	}
+	
 	[DllImport("user32.dll")]
 	private static extern byte GetKeyboardState(byte[] keyStates);
+	
+	[DllImport("user32.dll")]
+	private static extern byte OpenClipboard(IntPtr hwnd);
+	[DllImport("user32.dll")]
+	private static extern byte CloseClipboard();
+	[DllImport("user32.dll")]
+	private static extern byte SetClipboardData(uint format, IntPtr data);
 }

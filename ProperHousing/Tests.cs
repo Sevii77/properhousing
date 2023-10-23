@@ -21,9 +21,10 @@ public partial class ProperHousing {
 			var mdloffsetidk = ((IntPtr)obj->Item + 0x80);
 			var count = (Marshal.PtrToStructure<ulong>(mdloffsetidk + 0x18) - Marshal.PtrToStructure<ulong>(mdloffsetidk + 0x10)) >> 3;
 			var idk = Marshal.ReadIntPtr(Marshal.ReadIntPtr(Marshal.ReadIntPtr(mdloffsetidk + 0x10) + 0) + 0x10) + 0x238;
-			PluginLog.Log($"Testing {obj->Name} ({((IntPtr)obj).ToString("X")}) ({count}) ({idk.ToString("X")})");
+			ProperHousing.Logger.Info($"Testing {obj->Name} ({((IntPtr)obj).ToString("X")}) ({count}) ({idk.ToString("X")})");
 			
-			var segs = obj->ModelSegments(objmesh.Count);
+			// var segs = obj->ModelSegments(objmesh.Count);
+			var segs = obj->ModelSegments();
 			foreach(var seg in segs) {
 				// PluginLog.Log($"- {((IntPtr)seg).ToString("X")}");
 				var rot = seg->Rotation;

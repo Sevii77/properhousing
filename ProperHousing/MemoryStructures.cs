@@ -56,11 +56,6 @@ public unsafe struct HousingManager {
 public unsafe struct Furniture {
 	[FieldOffset(0x30)] private fixed byte name[64];
 	[FieldOffset(0x80)] public uint ID;
-	// [FieldOffset(0xA0)] public float X;
-	// [FieldOffset(0xA4)] public float Y;
-	// [FieldOffset(0xA8)] public float Z;
-	// [FieldOffset(0xB0)] public float Rotation;
-	// [FieldOffset(0xF8)] public FurnitureItem* Item;
 	[FieldOffset(0xB0)] public float X;
 	[FieldOffset(0xB4)] public float Y;
 	[FieldOffset(0xB8)] public float Z;
@@ -79,43 +74,121 @@ public unsafe struct Furniture {
 		}
 	}
 	
-	// I've given up, this mess will have to do
-	public FurnitureModelSegment*[] ModelSegments(int len) {
-		if(this.Item->Model == null || this.Item->Model->Pieces == IntPtr.Zero)
-			return new FurnitureModelSegment*[0];
-		
-		var l = new FurnitureModelSegment*[len];
-		for(var i = 0; i < len; i++) {
-			var ptr = ((FurnitureModelIdk*)Marshal.ReadIntPtr(this.Item->Model->Pieces + i * 8));
-			
-			// Super nasty hack since i dont want to figure out how to properly solve it
-			// TODO: properly solve it
-			try {
-				l[i] = ptr->Piece->Segment;
-				var _ = l[i]->Position;
-				// Dalamud.Logging.PluginLog.Log($"- Success: {((IntPtr)ptr->Piece->Segment).ToString("X")}");
-			} catch {
-				// Dalamud.Logging.PluginLog.Log($"- Failed: {((IntPtr)ptr->Piece->Segment).ToString("X")}");
-				l[i] = (FurnitureModelSegment*)this.Item;
-			}
-		}
-		
-		return l;
-	}
+	public FurnitureModelSegment*[] ModelSegments() => Item->ModelSegments();
+	// public FurnitureModelSegment*[] ModelSegments() {
+	// 	// PluginLog.Log($"{Name}");
+	// 	return Item->ModelSegments();
+	// }
+	
+	// // I've given up, this mess will have to do
+	// public FurnitureModelSegment*[] ModelSegments(int len) {
+	// 	if(this.Item->Model == null || this.Item->Model->Pieces == IntPtr.Zero)
+	// 		return new FurnitureModelSegment*[0];
+	// 	
+	// 	var l = new FurnitureModelSegment*[len];
+	// 	for(var i = 0; i < len; i++) {
+	// 		var ptr = ((FurnitureModelIdk*)Marshal.ReadIntPtr(this.Item->Model->Pieces + i * 8));
+	// 		
+	// 		// Super nasty hack since i dont want to figure out how to properly solve it
+	// 		// TODO: properly solve it
+	// 		try {
+	// 			l[i] = ptr->Piece->Segment;
+	// 			var _ = l[i]->Position;
+	// 			// PluginLog.Log($"- Success: {((IntPtr)ptr->Piece->Segment).ToString("X")} ({Name})");
+	// 		} catch {
+	// 			// PluginLog.Log($"- Failed: {((IntPtr)ptr->Piece->Segment).ToString("X")} ({Name})");
+	// 			l[i] = (FurnitureModelSegment*)this.Item;
+	// 		}
+	// 	}
+	// 	
+	// 	return l;
+	// }
 }
 
+// function called to update furniture visual models, param_1 is FurnitureItem* + 0x80
+// void FUN_14059e890(longlong param_1)
+// {
+//   longlong lVar1;
+//   longlong *plVar2;
+//   undefined8 uVar3;
+//   ulonglong uVar4;
+//   ulonglong uVar5;
+//   undefined local_38 [48];
+//   
+//   uVar3 = (**(code **)(**(longlong **)(param_1 + 8) + 0x230))();
+//   uVar5 = 0;
+//   uVar4 = *(longlong *)(param_1 + 0x18) - *(longlong *)(param_1 + 0x10) >> 3;
+//   if (uVar4 != 0) {
+//     do {
+//       lVar1 = *(longlong *)(*(longlong *)(param_1 + 0x10) + uVar5 * 8);
+//       FUN_140625480(local_38,lVar1 + 0x20,uVar3);
+//       plVar2 = *(longlong **)(lVar1 + 0x10);
+//       (**(code **)(*plVar2 + 0x238))(plVar2,local_38);
+//       uVar5 = uVar5 + 1;
+//     } while (uVar5 < uVar4);
+//   }
+//   return;
+// }
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct FurnitureItem {
 	[FieldOffset(0x50)] public Vector3 Position;
 	[FieldOffset(0x60)] public Quaternion Rotation;
 	[FieldOffset(0x70)] public Vector3 Scale;
-	[FieldOffset(0x88)] public FurnitureModel* Model;
+	// [FieldOffset(0x88)] public FurnitureModel* Model;
+	[FieldOffset(0x90)] public ulong PiecesA;
+	[FieldOffset(0x98)] public ulong PiecesB;
+	
+	// uVar4
+	public uint PiecesCount {
+		get {
+			return (uint)((PiecesB - PiecesA) >> 3);
+		}
+	}
+	
+	public FurnitureModelPiece*[] Pieces() {
+		var l = new FurnitureModelPiece*[PiecesCount];
+		// var minIndex = int.MaxValue;
+		// for(var i = 0; i < PiecesCount; i++)
+		// 	minIndex = Math.Min(minIndex, ((FurnitureModelIdk*)Marshal.ReadIntPtr((IntPtr)this.PiecesA + i * 8))->Piece->Index);
+		
+		for(var i = 0; i < PiecesCount; i++) {
+			var ptr = (FurnitureModelIdk*)Marshal.ReadIntPtr((IntPtr)this.PiecesA + i * 8);
+			
+			l[i] = ptr->Piece;
+			// try {
+			// 	l[ptr->Piece->Index - minIndex] = ptr->Piece;
+			// } catch {
+			// 	// PluginLog.Log($"len: {PiecesCount}; index: {ptr->Piece->Index - minIndex}");
+			// }
+		}
+		
+		return l;
+	}
+	
+	// only gets pieces with type 1 (model)
+	public FurnitureModelSegment*[] ModelSegments() {
+		var pieces = Pieces();
+		var len = 0;
+		foreach(var v in pieces)
+			if(v->Type == 1)
+				len += 1;
+		
+		var l = new FurnitureModelSegment*[len];
+		var i = 0;
+		foreach(var v in pieces)
+			if(v->Type == 1) {
+				l[i] = v->Segment;
+				i++;
+			}
+		
+		return l;
+	}
 }
 
-[StructLayout(LayoutKind.Explicit)]
-public unsafe struct FurnitureModel {
-	[FieldOffset(0x90)] public IntPtr Pieces;
-}
+// [StructLayout(LayoutKind.Explicit)]
+// public unsafe struct FurnitureModel {
+// 	[FieldOffset(0x90)] public IntPtr Pieces;
+// }
 
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct FurnitureModelIdk {
@@ -123,8 +196,22 @@ public unsafe struct FurnitureModelIdk {
 }
 
 // first param of (48 89 5C 24 ?? 57 48 83 EC 60 48 8B D9 48 8B FA)
+// all comments are for model 1268 (Starry Sky Phasmascape), it may be different for others
 [StructLayout(LayoutKind.Explicit, Size = 0x110)]
 public unsafe struct FurnitureModelPiece {
+	[FieldOffset(0x00)] public IntPtr Unk1; // all pieces with the same type point to the same thing, probably vtbl for rendering the piece or smth idfk
+	[FieldOffset(0x08)] public IntPtr Unk2; // all pieces point to the same object
+	[FieldOffset(0x10)] public IntPtr Unk3; // all pieces point to the same different object
+	
+	[FieldOffset(0x18)] public byte UnkIncr; // starts at 2 and increases with 4 every ArrayIndex (2, 6, 10, 14...)
+	
+	// 1: model
+	// 3: light (for windows)
+	// 68: unk (doesnt have Segment)
+	// 70: unk (doesnt have Segment)
+	[FieldOffset(0x19)] public byte Type;
+	[FieldOffset(0x23)] public byte Index; // not in same order as array index and 1 indexed most of the time but not always (3, 1, 2, 4, 5, 6, 7, 8, 9, 10)
+	[FieldOffset(0x28)] public byte ArrayIndex; // same order as array and 0 indexed
 	[FieldOffset(0x30)] public FurnitureModelSegment* Segment;
 }
 
@@ -161,8 +248,8 @@ public unsafe struct LayoutManager {
 	[FieldOffset(0x004)] public LayoutMode LastMode;
 	[FieldOffset(0x010)] public FurnitureItem* HoverItem;
 	[FieldOffset(0x018)] public FurnitureItem* ActiveItem;
-	[FieldOffset(0x070)] public bool PreviewMode;
-	[FieldOffset(0x170)] public bool HousingMode;
-	[FieldOffset(0x171)] public bool GridSnap;
-	[FieldOffset(0x172)] public bool Counter;
+	[FieldOffset(0x088)] public bool PreviewMode;
+	[FieldOffset(0x180)] public bool HousingMode;
+	[FieldOffset(0x181)] public bool GridSnap;
+	[FieldOffset(0x182)] public bool Counter;
 }
