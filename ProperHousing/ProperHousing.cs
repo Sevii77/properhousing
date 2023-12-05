@@ -12,9 +12,7 @@ using ImGuiNET;
 using Dalamud.IoC;
 using Dalamud.Game;
 using Dalamud.Plugin;
-using Dalamud.Data;
 using Dalamud.Hooking;
-using Dalamud.Game.Gui;
 using Dalamud.Game.Command;
 using Dalamud.Plugin.Services;
 
@@ -212,15 +210,12 @@ public partial class ProperHousing : IDalamudPlugin {
 			}
 		}
 		
-		void ToggleCheckbox(ushort index) {
-			if(index != 0)
-				ToggleCheckbox(0);
-			
+		void ToggleCheckbox(ushort index, int nodeindex) {
 			var atk = AtkStage.GetSingleton()->RaptureAtkUnitManager->GetAddonByName("HousingLayout");
 			
 			var eventData = stackalloc void*[3];
 			eventData[0] = null;
-			eventData[1] = null;
+			eventData[1] = atk->UldManager.NodeList[nodeindex]->GetAsAtkComponentCheckBox()->AtkComponentButton.AtkComponentBase.OwnerNode;
 			eventData[2] = atk;
 			
 			var inputData = stackalloc void*[8];
@@ -231,14 +226,14 @@ public partial class ProperHousing : IDalamudPlugin {
 			receiveEvent(&atk->AtkEventListener, 25, index, eventData, inputData);
 		}
 		
-		if(config.MoveMode.Pressed()) ToggleCheckbox(1);
-		if(config.RotateMode.Pressed()) ToggleCheckbox(2);
+		if(config.MoveMode.Pressed()) ToggleCheckbox(1, 9);
+		if(config.RotateMode.Pressed()) ToggleCheckbox(2, 8);
 		if(!layout->Manager->PreviewMode) {
-			if(config.RemoveMode.Pressed()) ToggleCheckbox(3);
-			if(config.StoreMode.Pressed()) ToggleCheckbox(4);
+			if(config.RemoveMode.Pressed()) ToggleCheckbox(3, 7);
+			if(config.StoreMode.Pressed()) ToggleCheckbox(4, 6);
 		}
-		if(config.CounterToggle.Pressed()) ToggleCheckbox(6);
-		if(config.GridToggle.Pressed()) ToggleCheckbox(7);
+		if(config.CounterToggle.Pressed()) ToggleCheckbox(6, 3);
+		if(config.GridToggle.Pressed()) ToggleCheckbox(7, 2);
 	}
 	
 	private unsafe void CameraZoomHandler(Camera* camera, int unk, int unk2, ulong unk3) {

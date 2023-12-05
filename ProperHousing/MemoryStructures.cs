@@ -6,10 +6,16 @@ namespace ProperHousing;
 
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct Camera {
+	[FieldOffset(0x1A0)] public float AngleX;
+	[FieldOffset(0x1A4)] public float AngleY;
+	[FieldOffset(0x1A8)] public float AngleZ;
+	[FieldOffset(0x1BC)] public float AngleW;
+	
 	[FieldOffset(0x1B0)] public float X;
 	[FieldOffset(0x1B4)] public float Y;
 	[FieldOffset(0x1B8)] public float Z;
 	
+	public Quaternion Angle => new Quaternion(AngleX, AngleY, AngleZ, AngleW);
 	public Vector3 Pos => new Vector3(X, Y, Z);
 }
 
