@@ -1,5 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
+using Dalamud.Hooking;
+using Dalamud.Utility;
 
 namespace ProperHousing;
 
@@ -181,41 +183,32 @@ public class InputHandler {
 	private static byte[] keyStates;
 	private static byte[] keyStatesLast;
 	
-	private static unsafe int* scrollPtr;
-	private static int scroll;
-	private static int lastScroll;
+	private static int scroll = 0;
+	private static GetScrollDelegate getScroll;
+	private delegate sbyte GetScrollDelegate();
 	
 	static unsafe InputHandler() {
 		keyStates = new byte[256];
 		keyStatesLast = new byte[256];
 		
-		// Get scroll state int, not the best idea, apparently it changes sometimes
-		var modules = System.Diagnostics.Process.GetCurrentProcess().Modules;
-		for(int i = 0; i < modules.Count; i++)
-			if(modules[i].ModuleName == "DINPUT8.dll") {
-				scrollPtr = (int*)(modules[i].BaseAddress + 0x3F128);
-				break;
-			}
-		
-		scroll = *scrollPtr;
-		lastScroll = *scrollPtr;
+		var addr = ProperHousing.SigScanner.ScanText("E8 ?? ?? ?? ?? F7 D8 48 8B CB");
+		getScroll = Marshal.GetDelegateForFunctionPointer<GetScrollDelegate>(addr);
 	}
 	
 	public static unsafe void Update() {
 		keyStatesLast = (byte[])keyStates.Clone();
 		GetKeyboardState(keyStates);
 		
-		lastScroll = scroll;
-		scroll = *scrollPtr;
+		scroll = getScroll();
 	}
 	
 	public static bool KeyPressed(Key key) {
-		return key == Key.WheelUp ? scroll > lastScroll :
-		       key == Key.WheelDown ? scroll < lastScroll :
+		return key == Key.WheelUp ? scroll > 0 :
+		       key == Key.WheelDown ? scroll < 0 :
 		       keyStates[(int)key] > 1 && keyStates[(int)key] != keyStatesLast[(int)key];
 	}
 	
-	public static int ScrollDelta => (int)Math.Ceiling((scroll - lastScroll) / 120f);
+	public static int ScrollDelta => scroll;
 	
 	public static void SetClipboard(string text) {
 		OpenClipboard(IntPtr.Zero);

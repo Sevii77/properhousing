@@ -133,9 +133,9 @@ public partial class ProperHousing : IDalamudPlugin {
 		housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("40 53 48 83 EC 20 33 DB 48 39 1D ?? ?? ?? ?? 75 2C 45 33 C0 33 D2 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 85 C0 74 11 48 8B C8 E8 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ?? EB 07"));
 		layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig("48 8B 0D ?? ?? ?? ?? 48 85 C9 74 ?? 48 8B 49 40 E9 ?? ?? ?? ??"));
 		
-		Logger.Debug($"{((IntPtr)(camera)).ToString("X")}");
-		Logger.Debug($"{((IntPtr)(housing)).ToString("X")}");
-		Logger.Debug($"{((IntPtr)(layout)).ToString("X")}");
+		Logger.Debug($"{((IntPtr)camera).ToString("X")}");
+		Logger.Debug($"{((IntPtr)housing).ToString("X")}");
+		Logger.Debug($"{((IntPtr)layout).ToString("X")}");
 		
 		GetHoverObjectHook = HookProv.HookFromAddress<GetHoverObjectDelegate>(SigScanner.ScanText("40 55 41 55 48 8D 6C 24 ?? 48 81 EC 38 01 00 00"), GetHoverObject);
 		GetHoverObjectHook.Enable();
@@ -203,14 +203,17 @@ public partial class ProperHousing : IDalamudPlugin {
 			var delta = ((config.RotateCounter.Pressed() ? -1 : 0) + (config.RotateClockwise.Pressed() ? 1 : 0)) * Math.Max(1, Math.Abs(InputHandler.ScrollDelta)) * 15;
 			if(delta != 0) {
 				var r = &layout->Manager->ActiveItem->Rotation;
-				var drag = (360 / 15f);
-				var rot = Math.Round((Math.Atan2(r->W, r->Y) / Math.PI * drag + delta / drag));
+				var drag = 360 / 15f;
+				var rot = Math.Round(Math.Atan2(r->W, r->Y) / Math.PI * drag + delta / drag);
 				r->Y = (float)Math.Cos(rot / drag * Math.PI);
 				r->W = (float)Math.Sin(rot / drag * Math.PI);
 			}
 		}
 		
 		void ToggleCheckbox(ushort index, int nodeindex) {
+			if(index == 0)
+				ToggleCheckbox(0, nodeindex);
+			
 			var atk = AtkStage.GetSingleton()->RaptureAtkUnitManager->GetAddonByName("HousingLayout");
 			
 			var eventData = stackalloc void*[3];
