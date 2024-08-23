@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.InteropServices;
 using ImGuiNET;
 using Newtonsoft.Json;
 using FFXIVClientStructs.FFXIV.Component.GUI;
@@ -8,7 +7,7 @@ using static ProperHousing.ProperHousing;
 namespace ProperHousing;
 
 [JsonObject(MemberSerialization.OptIn)]
-public class GenericKeybinds : Module {
+public class GenericKeybinds: Module {
 	public override string Name => "GenericKeybinds";
 	
 	[JsonProperty] private Bind RotateCounter;
@@ -19,8 +18,6 @@ public class GenericKeybinds : Module {
 	[JsonProperty] private Bind StoreMode;
 	[JsonProperty] private Bind CounterToggle;
 	[JsonProperty] private Bind GridToggle;
-	
-	private unsafe delegate IntPtr ReceiveEventDelegate(AtkEventListener* eventListener, ushort evt, uint which, void* eventData, void* inputData);
 	
 	public GenericKeybinds() {
 		RotateCounter = new(true, false, false, Key.WheelUp);
@@ -67,22 +64,18 @@ public class GenericKeybinds : Module {
 		}
 		
 		void ToggleCheckbox(ushort index, int nodeindex) {
-			if(index != 0)
-				ToggleCheckbox(0, nodeindex);
-			
-			var atk = AtkStage.GetSingleton()->RaptureAtkUnitManager->GetAddonByName("HousingLayout");
+			var addon = AtkStage.Instance()->RaptureAtkUnitManager->GetAddonByName("HousingLayout");
 			
 			var eventData = stackalloc void*[3];
 			eventData[0] = null;
-			eventData[1] = atk->UldManager.NodeList[nodeindex]->GetAsAtkComponentCheckBox()->AtkComponentButton.AtkComponentBase.OwnerNode;
-			eventData[2] = atk;
+			eventData[1] = addon->UldManager.NodeList[nodeindex];
+			eventData[2] = addon;
 			
 			var inputData = stackalloc void*[8];
 			for(var i = 0; i < 8; i++)
 				inputData[i] = null;
 			
-			var receiveEvent = Marshal.GetDelegateForFunctionPointer<ReceiveEventDelegate>(new IntPtr(atk->AtkEventListener.vfunc[2]))!;
-			receiveEvent(&atk->AtkEventListener, 25, index, eventData, inputData);
+			addon->AtkEventListener.VirtualTable->ReceiveEvent(&addon->AtkEventListener, (AtkEventType)25, index, (AtkEvent*)eventData, (AtkEventData*)inputData);
 		}
 		
 		if(MoveMode.Pressed()) ToggleCheckbox(1, 9);

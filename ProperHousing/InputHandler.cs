@@ -221,7 +221,6 @@ public class InputHandler {
 	
 	[DllImport("user32.dll")]
 	private static extern byte GetKeyboardState(byte[] keyStates);
-	
 	[DllImport("user32.dll")]
 	private static extern byte OpenClipboard(IntPtr hwnd);
 	[DllImport("user32.dll")]

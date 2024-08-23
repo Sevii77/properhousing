@@ -16,7 +16,7 @@ using static ProperHousing.ProperHousing;
 namespace ProperHousing;
 
 [JsonObject(MemberSerialization.OptIn)]
-public class AccurateSelection : Module {
+public class AccurateSelection: Module {
 	public override string Name => "AccurateSelection";
 	
 	private readonly float epsilon = 0.0000001f;
@@ -95,7 +95,7 @@ public class AccurateSelection : Module {
 			return;
 		
 		// draw bb and wireframe
-		var draw = ImGui.GetForegroundDrawList();
+		var draw = ImGui.GetBackgroundDrawList();
 		
 		var objmesh = GetMesh(obj);
 		if(objmesh != null) {

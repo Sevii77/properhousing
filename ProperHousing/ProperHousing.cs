@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-
+using System.Runtime.InteropServices;
 using ImGuiNET;
 using Dalamud.IoC;
 using Dalamud.Game;
@@ -9,19 +9,16 @@ using Dalamud.Hooking;
 using Dalamud.Game.Command;
 using Dalamud.Plugin.Services;
 
-using FFXIVClientStructs.FFXIV.Component.GUI;
-using System.Runtime.InteropServices;
-
 namespace ProperHousing;
 
-public partial class ProperHousing : IDalamudPlugin {
-	[PluginService][RequiredVersion("1.0")] public static DalamudPluginInterface Interface   {get; private set;} = null!;
-	[PluginService][RequiredVersion("1.0")] public static ICommandManager        Commands    {get; private set;} = null!;
-	[PluginService][RequiredVersion("1.0")] public static ISigScanner            SigScanner  {get; private set;} = null!;
-	[PluginService][RequiredVersion("1.0")] public static IDataManager           DataManager {get; private set;} = null!;
-	[PluginService][RequiredVersion("1.0")] public static IGameGui               GameGui     {get; private set;} = null!;
-	[PluginService][RequiredVersion("1.0")] public static IGameInteropProvider   HookProv    {get; private set;} = null!;
-	[PluginService][RequiredVersion("1.0")] public static IPluginLog             Logger      {get; private set;} = null!;
+public partial class ProperHousing: IDalamudPlugin {
+	[PluginService] public static IDalamudPluginInterface Interface   {get; private set;} = null!;
+	[PluginService] public static ICommandManager         Commands    {get; private set;} = null!;
+	[PluginService] public static ISigScanner             SigScanner  {get; private set;} = null!;
+	[PluginService] public static IDataManager            DataManager {get; private set;} = null!;
+	[PluginService] public static IGameGui                GameGui     {get; private set;} = null!;
+	[PluginService] public static IGameInteropProvider    HookProv    {get; private set;} = null!;
+	[PluginService] public static IPluginLog              Logger      {get; private set;} = null!;
 	
 	public string Name => "Better Housing";
 	private readonly string command = "/betterhousing";
@@ -38,9 +35,6 @@ public partial class ProperHousing : IDalamudPlugin {
 	public static unsafe Camera* camera;
 	public static unsafe Housing* housing;
 	public static unsafe Layout* layout;
-	
-	private unsafe delegate void CameraZoomHandlerDelegate(Camera* camera, int unk, int unk2, ulong unk3);
-	private Hook<CameraZoomHandlerDelegate> CameraZoomHandlerHook;
 	
 	public class Bind {
 		public static HashSet<Bind> RegisteredBinds = [];
@@ -80,13 +74,7 @@ public partial class ProperHousing : IDalamudPlugin {
 	}
 	
 	public unsafe ProperHousing() {
-		gui = new();
-		modules = [
-			new AccurateSelection(),
-			new GenericKeybinds(),
-		];
-		
-		camera = (Camera*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig(Sigs.CameraStruct));
+		camera = (Camera*)FFXIVClientStructs.FFXIV.Client.Game.Control.CameraManager.Instance()->Camera;
 		housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig(Sigs.HousingStruct));
 		layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig(Sigs.LayoutStruct));
 		
@@ -98,6 +86,11 @@ public partial class ProperHousing : IDalamudPlugin {
 		CameraZoomHandlerHook = HookProv.HookFromAddress<CameraZoomHandlerDelegate>(SigScanner.ScanText(Sigs.CameraZoom), CameraZoomHandler);
 		CameraZoomHandlerHook.Enable();
 		
+		gui = new();
+		modules = [
+			new AccurateSelection(),
+			new GenericKeybinds(),
+		];
 		
 		Interface.UiBuilder.Draw += Draw;
 		Interface.UiBuilder.OpenConfigUi += OpenConf;
@@ -159,12 +152,14 @@ public partial class ProperHousing : IDalamudPlugin {
 			module.Tick();
 	}
 	
-	private unsafe void CameraZoomHandler(Camera* camera, int unk, int unk2, ulong unk3) {
+	private unsafe delegate void CameraZoomHandlerDelegate(Camera* camera, float a, long b, long c, int d);
+	private Hook<CameraZoomHandlerDelegate> CameraZoomHandlerHook;
+	private unsafe void CameraZoomHandler(Camera* camera, float a, long b, long c, int d) {
 		if(preventzoom) {
 			preventzoom = false;
 			return;
 		}
 		
-		CameraZoomHandlerHook.Original(camera, unk, unk2, unk3);
+		CameraZoomHandlerHook.Original(camera, a, b, c, d);
 	}
 }
