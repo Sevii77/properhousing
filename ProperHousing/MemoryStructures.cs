@@ -235,7 +235,29 @@ public unsafe struct FurnitureModelSegment {
 
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct Layout {
+	[FieldOffset(0x20)] public HouseLayout* HouseLayout;
 	[FieldOffset(0x40)] public LayoutManager* Manager;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public unsafe struct HouseLayout {
+	[FieldOffset(0x20)] public uint Territory;
+	[FieldOffset(0x90)] public IndoorLayout* Layout;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public unsafe struct IndoorLayout {
+	[FieldOffset(0x28)] public FloorLayout Floor1;
+	[FieldOffset(0x3C)] public FloorLayout Floor2;
+	[FieldOffset(0x50)] public FloorLayout Floor3;
+	[FieldOffset(0x64)] public FloorLayout Floor4;
+	[FieldOffset(0x78)] public fixed byte Unk[8];
+	[FieldOffset(0x80)] public float Lightlevel;
+}
+
+[StructLayout(LayoutKind.Explicit, Size = 0x14)]
+public unsafe struct FloorLayout {
+	[FieldOffset(0x0)] public fixed int Fixtures[5];
 }
 
 public enum LayoutMode: uint {

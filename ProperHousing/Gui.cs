@@ -62,4 +62,37 @@ public class Gui {
 		
 		ImGui.End();
 	}
+	
+	public unsafe void DrawDebug() {
+		ImGui.Begin("Better Housing Debug", ImGuiWindowFlags.AlwaysAutoResize);
+		
+		var house = ProperHousing.layout->HouseLayout;
+		if(house == null)
+			goto end;
+		
+		var layout = house->Layout;
+		if(layout == null)
+			goto end;
+		
+		void drawFloor(ref FloorLayout floor) {
+			for(var i = 0; i < 5; i++)
+				ImGui.Text($"\t{floor.Fixtures[i]}");
+				
+		}
+		
+		ImGui.Text("Floor 1");
+		drawFloor(ref layout->Floor1);
+		
+		ImGui.Text("Floor 2");
+		drawFloor(ref layout->Floor2);
+		
+		ImGui.Text("Floor 3");
+		drawFloor(ref layout->Floor3);
+		
+		ImGui.Text("Floor 4");
+		drawFloor(ref layout->Floor4);
+		
+		end:
+		ImGui.End();
+	}
 }

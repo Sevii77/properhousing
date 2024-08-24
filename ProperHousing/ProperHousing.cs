@@ -78,9 +78,9 @@ public partial class ProperHousing: IDalamudPlugin {
 		housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig(Sigs.HousingStruct));
 		layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig(Sigs.LayoutStruct));
 		
-		Logger.Debug($"{((IntPtr)camera).ToString("X")}");
-		Logger.Debug($"{((IntPtr)housing).ToString("X")}");
-		Logger.Debug($"{((IntPtr)layout).ToString("X")}");
+		Logger.Debug($"Camera  {((IntPtr)camera).ToString("X")}");
+		Logger.Debug($"Housing {((IntPtr)housing).ToString("X")}");
+		Logger.Debug($"Layout  {((IntPtr)layout).ToString("X")}");
 		
 		// TODO: find alternative. this wont work over windows, making it annoying to set scrollwheel keybinds
 		CameraZoomHandlerHook = HookProv.HookFromAddress<CameraZoomHandlerDelegate>(SigScanner.ScanText(Sigs.CameraZoom), CameraZoomHandler);
@@ -136,6 +136,9 @@ public partial class ProperHousing: IDalamudPlugin {
 		
 		if(confDraw)
 			gui.DrawConf(ref confDraw, modules);
+		
+		// if(DebugDraw)
+		// 	gui.DrawDebug();
 		
 		if(layout->Manager != null && layout->Manager->HousingMode)
 			Tick();
