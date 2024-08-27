@@ -76,11 +76,9 @@ public class AccurateSelection: Module {
 		
 		var draw = ImGui.GetBackgroundDrawList();
 		var screenpos = ImGui.GetMousePos();
-		var origin = camera->Pos;
-		
-		GameGui.ScreenToWorld(screenpos, out var target);
-		var dir = Vector3.Normalize(target - origin);
-		// var distance = Vector3.Distance(origin, target);
+		var ray = Project2D(screenpos);
+		var origin = ray.Item1;
+		var dir = ray.Item2;
 		var distance = float.MaxValue;
 		
 		// var obj = housing->IsOutdoor ? zone->OutdoorHoverObject : zone->IndoorHoverObject;
@@ -222,16 +220,12 @@ public class AccurateSelection: Module {
 		if(layout->Manager == null || layout->Manager->PreviewMode)
 			return GetHoverObjectHook.Original(ptr);
 		
-		// var origin = camera->Pos;
 		var screenpos = ImGui.GetMousePos();
-		var origin = camera->Pos;
-		
-		GameGui.ScreenToWorld(screenpos, out var target);
-		var dir = Vector3.Normalize(target - origin);
-		
-		var curobj = IntPtr.Zero;
-		// var distance = Vector3.Distance(origin, target) + 0.1f; // makes sure to not block object selection by the object's vanilla collision (happens in remove/storage mod for some)
+		var ray = Project2D(screenpos);
+		var origin = ray.Item1;
+		var dir = ray.Item2;
 		var distance = float.MaxValue;
+		var curobj = IntPtr.Zero;
 		var house = GetMesh((ushort)layout->HouseLayout->Territory);
 		if(house != null)
 			foreach(var mesh in house)
@@ -266,7 +260,13 @@ public class AccurateSelection: Module {
 	private unsafe bool CollidesObj(Furniture* obj, ref Vector3 origin, ref Vector3 dir, float range, out float distance) {
 		distance = range;
 		
-		var objmesh = GetMesh(obj);
+		List<(List<Vector3[]>, (Vector3, Vector3))>? objmesh = null;
+		try {
+			objmesh = GetMesh(obj);
+		} catch(Exception e) {
+			Logger.Error(e, "Failed getting mesh");
+		}
+		
 		if(objmesh == null)
 			return false;
 			// ohoh, we cant target this object
@@ -355,6 +355,11 @@ public class AccurateSelection: Module {
 		return distance > 0;
 	}
 	
+	private unsafe (Vector3, Vector3) Project2D(Vector2 pos) {
+		var ray = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.CameraManager.Instance()->CurrentCamera->ScreenPointToRay(pos);
+		return (ray.Origin, ray.Direction);
+	}
+	
 	private List<string> GetModelPaths(string sgbpath) {
 		var sgb = DataManager.GetFile<FileResource>(sgbpath);
 		if(sgb == null)
@@ -397,6 +402,10 @@ public class AccurateSelection: Module {
 	}
 	
 	private unsafe List<(List<Vector3[]>, (Vector3, Vector3))>? GetMesh(Furniture* obj) {
+		if(obj == null)
+			return null;
+		// Logger.Debug($"furniture  {(nint)obj:X}");
+		// Logger.Debug($"furniture id {(nint)obj->ID:X}");
 		var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj->ID)?.ModelKey : houseSheet?.GetRow(obj->ID)?.ModelKey;
 		if(!modelkey.HasValue)
 			return null;
