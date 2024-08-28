@@ -7,7 +7,9 @@ public abstract class Module {
 	public abstract string Name {get;}
 	private string configPath => ProperHousing.Interface.ConfigDirectory.FullName + "/" + Name + ".json";
 	
-	public abstract void DrawOption();
+	public abstract bool DrawOption();
+	public virtual void DrawDebug() {}
+	public virtual bool DrawQuick() {return false;}
 	public virtual void Tick() {}
 	public virtual void Dispose() {}
 	

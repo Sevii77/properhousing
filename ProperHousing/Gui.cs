@@ -52,12 +52,32 @@ public class Gui {
 	}
 	
 	public void DrawConf(ref bool enabled, Module[] modules) {
+		ImGui.Begin("Better Housing Config", ref enabled, ImGuiWindowFlags.AlwaysAutoResize);
+		
+		var first = true;
+		for(var i = 0; i < modules.Length; i++) {
+			if(modules[i].DrawOption()) {
+				if(!first)
+					ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 8.0f);
+				
+				first = false;
+			}
+		}
+		
+		ImGui.End();
+	}
+	
+	public void DrawQuick(ref bool enabled, Module[] modules) {
 		ImGui.Begin("Better Housing", ref enabled, ImGuiWindowFlags.AlwaysAutoResize);
 		
+		var first = true;
 		for(var i = 0; i < modules.Length; i++) {
-			modules[i].DrawOption();
-			if(i < modules.Length - 1)
-				ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 8.0f);
+			if(modules[i].DrawQuick()) {
+				if(!first)
+					ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 8.0f);
+				
+				first = false;
+			}
 		}
 		
 		ImGui.End();

@@ -31,7 +31,7 @@ public class GenericKeybinds: Module {
 		LoadConfig();
 	}
 	
-	public override void DrawOption() {
+	public override bool DrawOption() {
 		var changed = false;
 		
 		ImGui.Text($"Keybinds (?)");
@@ -49,6 +49,8 @@ public class GenericKeybinds: Module {
 		
 		if(changed)
 			SaveConfig();
+		
+		return true;
 	}
 	
 	public unsafe override void Tick() {

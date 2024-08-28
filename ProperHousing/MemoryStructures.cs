@@ -6,23 +6,18 @@ namespace ProperHousing;
 
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct Camera {
-	[FieldOffset(0x010)] private FFXIVClientStructs.FFXIV.Common.Math.Matrix4x4 pm;
+	[FieldOffset(0x010)] public FFXIVClientStructs.FFXIV.Common.Math.Matrix4x4 ProjMatrix;
 	
-	[FieldOffset(0x1A0)] public float AngleX;
-	[FieldOffset(0x1A4)] public float AngleY;
-	[FieldOffset(0x1A8)] public float AngleZ;
-	[FieldOffset(0x1BC)] public float AngleW;
-	
-	[FieldOffset(0x1B0)] public float X;
-	[FieldOffset(0x1B4)] public float Y;
-	[FieldOffset(0x1B8)] public float Z;
+	[FieldOffset(0x060)] public FFXIVClientStructs.FFXIV.Common.Math.Vector3 Pos;
+	[FieldOffset(0x090)] public FFXIVClientStructs.FFXIV.Common.Math.Vector3 LookAt;
+	[FieldOffset(0x114)] public float Zoom;
+	[FieldOffset(0x130)] public float HRotation;
+    [FieldOffset(0x134)] public float VRotation;
+	[FieldOffset(0x1A0)] public FFXIVClientStructs.FFXIV.Common.Math.Vector4 Angle;
+	// [FieldOffset(0x1B0)] public FFXIVClientStructs.FFXIV.Common.Math.Vector3 Pos;
 	
 	[FieldOffset(0x1F0)] public float NearPlane;
 	[FieldOffset(0x1F4)] public float FarPlane;
-	
-	public Matrix4x4 ProjMatrix => new Matrix4x4(pm.M11, pm.M12, pm.M13, pm.M14, pm.M21, pm.M22, pm.M23, pm.M24, pm.M31, pm.M32, pm.M33, pm.M34, pm.M41, pm.M42, pm.M43, pm.M44);
-	public Quaternion Angle => new Quaternion(AngleX, AngleY, AngleZ, AngleW);
-	public Vector3 Pos => new Vector3(X, Y, Z);
 }
 
 // TODO: figure out what island sanctuary is doing so that can be supported

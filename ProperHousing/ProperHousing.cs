@@ -8,10 +8,11 @@ using Dalamud.Plugin;
 using Dalamud.Hooking;
 using Dalamud.Game.Command;
 using Dalamud.Plugin.Services;
+using System.Numerics;
 
 namespace ProperHousing;
 
-public partial class ProperHousing: IDalamudPlugin {
+public class ProperHousing: IDalamudPlugin {
 	[PluginService] public static IDalamudPluginInterface Interface   {get; private set;} = null!;
 	[PluginService] public static ICommandManager         Commands    {get; private set;} = null!;
 	[PluginService] public static ISigScanner             SigScanner  {get; private set;} = null!;
@@ -24,14 +25,16 @@ public partial class ProperHousing: IDalamudPlugin {
 	private readonly string command = "/betterhousing";
 	private readonly string commandalt = "/bh";
 	
-	public static bool DebugDraw {get; private set;} = false;
+	private bool debugDraw = false;
 	private bool confDraw = false;
+	private bool quickDraw = true;
 	private bool preventzoom = false;
 	
 	// public static Config config = null!;
 	private Gui gui;
 	private Module[] modules;
 	
+	public static CollisionScene collisionScene = null!;
 	public static unsafe Camera* camera;
 	public static unsafe Housing* housing;
 	public static unsafe Layout* layout;
@@ -51,11 +54,11 @@ public partial class ProperHousing: IDalamudPlugin {
 			Key = Key.None;
 		}
 		
-		public Bind(bool s, bool c, bool a, Key k) {
-			Shift = s;
-			Ctrl = c;
-			Alt = a;
-			Key = k;
+		public Bind(bool shift, bool ctrl, bool alt, Key key) {
+			Shift = shift;
+			Ctrl = ctrl;
+			Alt = alt;
+			Key = key;
 			
 			RegisteredBinds.Add(this);
 		}
@@ -74,6 +77,7 @@ public partial class ProperHousing: IDalamudPlugin {
 	}
 	
 	public unsafe ProperHousing() {
+		collisionScene = new();
 		camera = (Camera*)FFXIVClientStructs.FFXIV.Client.Game.Control.CameraManager.Instance()->Camera;
 		housing = (Housing*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig(Sigs.HousingStruct));
 		layout = (Layout*)Marshal.ReadIntPtr(SigScanner.GetStaticAddressFromSig(Sigs.LayoutStruct));
@@ -82,6 +86,7 @@ public partial class ProperHousing: IDalamudPlugin {
 		Logger.Debug($"Housing {((IntPtr)housing).ToString("X")}");
 		Logger.Debug($"Layout  {((IntPtr)layout).ToString("X")}");
 		
+		// FFXIVClientStructs.FFXIV.Client.Game.Control.CameraManager.Instance()->Camera->CameraBase.SceneCamera.Object.Position
 		// TODO: find alternative. this wont work over windows, making it annoying to set scrollwheel keybinds
 		CameraZoomHandlerHook = HookProv.HookFromAddress<CameraZoomHandlerDelegate>(SigScanner.ScanText(Sigs.CameraZoom), CameraZoomHandler);
 		CameraZoomHandlerHook.Enable();
@@ -90,6 +95,8 @@ public partial class ProperHousing: IDalamudPlugin {
 		modules = [
 			new AccurateSelection(),
 			new GenericKeybinds(),
+			// new CameraFollow(),
+			new ImprovedPlacement(),
 		];
 		
 		Interface.UiBuilder.Draw += Draw;
@@ -117,12 +124,19 @@ public partial class ProperHousing: IDalamudPlugin {
 			module.Dispose();
 	}
 	
+	public static (Vector3, Vector3) Project2D(Vector2 pos) {
+		unsafe {
+			var ray = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.CameraManager.Instance()->CurrentCamera->ScreenPointToRay(pos);
+			return (ray.Origin, ray.Direction);
+		}
+	}
+	
 	private void HandleCommand(string cmd, string args) {
 		if(cmd != command && cmd != commandalt)
 			return;
 		
 		if(args == "debug")
-			DebugDraw = !DebugDraw;
+			debugDraw = !debugDraw;
 		// else if(args == "test collides")
 		// 	TestCollides();
 		else if(args == "config")
@@ -132,15 +146,24 @@ public partial class ProperHousing: IDalamudPlugin {
 	private void OpenConf() {confDraw = true;}
 	
 	private unsafe void Draw() {
+		var inHousing = layout->Manager != null && layout->Manager->HousingMode;
+		
 		InputHandler.Update();
 		
 		if(confDraw)
 			gui.DrawConf(ref confDraw, modules);
 		
+		if(quickDraw && inHousing)
+			gui.DrawQuick(ref quickDraw, modules);
+		
+		if(debugDraw)
+			for(var i = 0; i < modules.Length; i++)
+				modules[i].DrawDebug();
+		
 		// if(DebugDraw)
 		// 	gui.DrawDebug();
 		
-		if(layout->Manager != null && layout->Manager->HousingMode)
+		if(inHousing)
 			Tick();
 	}
 	
