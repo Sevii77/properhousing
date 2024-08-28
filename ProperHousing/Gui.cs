@@ -56,11 +56,12 @@ public class Gui {
 		
 		var first = true;
 		for(var i = 0; i < modules.Length; i++) {
-			if(modules[i].DrawOption()) {
+			if(modules[i].DoDrawOption) {
 				if(!first)
 					ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 8.0f);
-				
 				first = false;
+				
+				modules[i].DrawOption();
 			}
 		}
 		
@@ -72,11 +73,12 @@ public class Gui {
 		
 		var first = true;
 		for(var i = 0; i < modules.Length; i++) {
-			if(modules[i].DrawQuick()) {
+			if(modules[i].DoDrawQuick) {
 				if(!first)
 					ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 8.0f);
-				
 				first = false;
+				
+				modules[i].DrawQuick();
 			}
 		}
 		

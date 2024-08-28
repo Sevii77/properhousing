@@ -10,6 +10,8 @@ namespace ProperHousing;
 [JsonObject(MemberSerialization.OptIn)]
 public class ImprovedPlacement: Module {
 	public override string Name => "ImprovedPlacement";
+	public override bool DoDrawOption => true;
+	public override bool DoDrawQuick => true;
 	
 	[JsonProperty] private bool Enabled;
 	[JsonProperty] private float GridSizeIncrement;
@@ -37,7 +39,7 @@ public class ImprovedPlacement: Module {
 		SetFurniturePosHook.Dispose();
 	}
 	
-	public override bool DrawOption() {
+	public override void DrawOption() {
 		var changed = false;
 		
 		if(ImGui.Checkbox("Improved Placement", ref Enabled)) {
@@ -55,19 +57,15 @@ public class ImprovedPlacement: Module {
 		
 		if(changed)
 			SaveConfig();
-		
-		return true;
 	}
 	
-	public override bool DrawQuick() {
+	public override void DrawQuick() {
 		var changed = false;
 		
 		changed |= ImGui.InputFloat("Grid Size", ref GridSize, 0.001f, 0.1f);
 		
 		if(changed)
 			SaveConfig();
-		
-		return true;
 	}
 	
 	public override void Tick() {

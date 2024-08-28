@@ -9,6 +9,7 @@ namespace ProperHousing;
 [JsonObject(MemberSerialization.OptIn)]
 public class GenericKeybinds: Module {
 	public override string Name => "GenericKeybinds";
+	public override bool DoDrawOption => true;
 	
 	[JsonProperty] private Bind RotateCounter;
 	[JsonProperty] private Bind RotateClockwise;
@@ -31,7 +32,7 @@ public class GenericKeybinds: Module {
 		LoadConfig();
 	}
 	
-	public override bool DrawOption() {
+	public override void DrawOption() {
 		var changed = false;
 		
 		ImGui.Text($"Keybinds (?)");
@@ -49,8 +50,6 @@ public class GenericKeybinds: Module {
 		
 		if(changed)
 			SaveConfig();
-		
-		return true;
 	}
 	
 	public unsafe override void Tick() {

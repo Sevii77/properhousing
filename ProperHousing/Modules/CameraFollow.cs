@@ -10,6 +10,7 @@ namespace ProperHousing;
 [JsonObject(MemberSerialization.OptIn)]
 public class CameraFollow: Module {
 	public override string Name => "CameraFollow";
+	public override bool DoDrawOption => true;
 	
 	[JsonProperty] private bool Enabled;
 	
@@ -29,7 +30,7 @@ public class CameraFollow: Module {
 		CameraHandleHook.Dispose();
 	}
 	
-	public override bool DrawOption() {
+	public override void DrawOption() {
 		if(ImGui.Checkbox("Camera Follow", ref Enabled)) {
 			SaveConfig();
 			
@@ -38,8 +39,6 @@ public class CameraFollow: Module {
 			else
 				CameraHandleHook.Disable();
 		}
-		
-		return true;
 	}
 	
 	private unsafe void SetCameraOrigin(nint a) {

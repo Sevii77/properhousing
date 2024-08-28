@@ -19,6 +19,7 @@ namespace ProperHousing;
 [JsonObject(MemberSerialization.OptIn)]
 public class AccurateSelection: Module {
 	public override string Name => "AccurateSelection";
+	public override bool DoDrawOption => true;
 	
 	[JsonProperty] private bool AccurateSelect;
 	
@@ -38,7 +39,7 @@ public class AccurateSelection: Module {
 		GetHoverObjectHook.Dispose();
 	}
 	
-	public override bool DrawOption() {
+	public override void DrawOption() {
 		if(ImGui.Checkbox("Accurate Selection", ref AccurateSelect)) {
 			SaveConfig();
 			
@@ -47,8 +48,6 @@ public class AccurateSelection: Module {
 			else
 				GetHoverObjectHook.Disable();
 		}
-		
-		return true;
 	}
 	
 	// Debug rendering
