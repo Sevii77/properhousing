@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using ImGuiNET;
 using static ProperHousing.ProperHousing;
@@ -54,16 +55,20 @@ public class Gui {
 	public void DrawConf(ref bool enabled, Module[] modules) {
 		ImGui.Begin("Better Housing Config", ref enabled, ImGuiWindowFlags.AlwaysAutoResize);
 		
-		var first = true;
 		for(var i = 0; i < modules.Length; i++) {
 			if(modules[i].DoDrawOption) {
-				if(!first)
-					ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 8.0f);
-				first = false;
-				
 				modules[i].DrawOption();
+				ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 8.0f);
 			}
 		}
+		
+		ImGui.PushStyleColor(ImGuiCol.Button, 0xFF00D2FE);
+		ImGui.PushStyleColor(ImGuiCol.ButtonActive, 0xFF000000 | (uint)(0x0000D2FE * 0.6));
+		ImGui.PushStyleColor(ImGuiCol.ButtonHovered, 0xFF000000 | (uint)(0x0000D2FE * 0.8));
+		ImGui.PushStyleColor(ImGuiCol.Text, 0xFF000000);
+		if(ImGui.Button("Support me on Buy Me a Coffee"))
+			Process.Start("https://buymeacoffee.com/sevii77");
+		ImGui.PopStyleColor(4);
 		
 		ImGui.End();
 	}

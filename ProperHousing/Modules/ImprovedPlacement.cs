@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Dalamud.Hooking;
 using static ProperHousing.ProperHousing;
 using System.Numerics;
+using System.Linq.Expressions;
 
 namespace ProperHousing;
 
@@ -22,6 +23,9 @@ public class ImprovedPlacement: Module {
 	private unsafe delegate void SetFurniturePosDelegate(FurnitureItem* obj, Vector3* pos);
 	private Hook<SetFurniturePosDelegate> SetFurniturePosHook;
 	
+	// private unsafe delegate void SwitchModeDelegate(LayoutManager* manager, LayoutMode mode, FurnitureItem* placeItem);
+	// private Hook<SwitchModeDelegate> SwitchModeHook;
+	
 	public unsafe ImprovedPlacement() {
 		Enabled = true;
 		GridSizeIncrement = 0.1f;
@@ -31,12 +35,17 @@ public class ImprovedPlacement: Module {
 		LoadConfig();
 		
 		SetFurniturePosHook = HookProv.HookFromAddress<SetFurniturePosDelegate>(SigScanner.ScanText(Sigs.SetFurniturePos), SetFurniturePos);
-		if(Enabled)
+		// SwitchModeHook = HookProv.HookFromAddress<SwitchModeDelegate>(SigScanner.ScanText(Sigs.SwitchMode), SwitchMode);
+		
+		if(Enabled) {
 			SetFurniturePosHook.Enable();
+			// SwitchModeHook.Enable();
+		}
 	}
 	
 	public override void Dispose() {
 		SetFurniturePosHook.Dispose();
+		// SwitchModeHook.Dispose();
 	}
 	
 	public override void DrawOption() {
@@ -45,10 +54,13 @@ public class ImprovedPlacement: Module {
 		if(ImGui.Checkbox("Improved Placement", ref Enabled)) {
 			changed =  true;
 			
-			if(Enabled)
+			if(Enabled) {
 				SetFurniturePosHook.Enable();
-			else
+				// SwitchModeHook.Enable();
+			} else {
 				SetFurniturePosHook.Disable();
+				// SwitchModeHook.Disable();
+			}
 		}
 		
 		changed |= ImGui.InputFloat("Grid Size Increment", ref GridSizeIncrement, 0.001f, 0.1f);
@@ -82,7 +94,7 @@ public class ImprovedPlacement: Module {
 	
 	private unsafe void SetFurniturePos(FurnitureItem* obj, Vector3* pos) {
 		var manager = layout->Manager;
-		if(obj == manager->ActiveItem && manager->Mode == LayoutMode.Move) {
+		if(manager->Mode == LayoutMode.Place || (manager->Mode == LayoutMode.Move && obj == manager->ActiveItem)) {
 			var screenpos = ImGui.GetMousePos();
 			var ray = Project2D(screenpos);
 			var hit = collisionScene.Raycast(
@@ -104,5 +116,39 @@ public class ImprovedPlacement: Module {
 		}
 		
 		SetFurniturePosHook.Original(obj, pos);
+		
+		// possible way to fake visual position, so that the furniture can be placed
+		// at 0,0,0 and then moved to where the user actually wants it. since the game
+		// doesn't allow you to place floating furniture. (no clue if its a serverside
+		// check or clientside and can be bypassed) TODO: look into this further
+		// ps: we'll have to hook w/e sets the cursor since that gets set to the obj pos
+		
+		// if(manager->Mode == LayoutMode.Place) {
+		// 	var screenpos = ImGui.GetMousePos();
+		// 	var ray = Project2D(screenpos);
+		// 	var hit = collisionScene.Raycast(
+		// 		ray.Item1,
+		// 		ray.Item1 + ray.Item2 * 999999,
+		// 		manager->Counter ? CollisionScene.CollisionType.All : CollisionScene.CollisionType.World,
+		// 		[(nint)obj]
+		// 	);
+		// 	
+		// 	if(hit.Hit) {
+		// 		// *pos = *pos + new Vector3(0, 1, 0);
+		// 		try {
+		// 			var segs = obj->ModelSegments();
+		// 			for(var i = 0; i < segs.Length; i++) {
+		// 				// Logger.Debug($"{i}: {(nint)segs[i]:X}");
+		// 				segs[i]->Position += new Vector3(0, 1, 0);
+		// 			}
+		// 		} catch {}
+		// 	}
+		// }
 	}
+	
+	// private unsafe void SwitchMode(LayoutManager* manager, LayoutMode mode, FurnitureItem* placeItem) {
+	// 	Logger.Debug($"switch {mode} {(nint)placeItem:X} {(nint)manager->PlaceItem:X}");
+	// 	
+	// 	SwitchModeHook.Original(manager, mode, placeItem);
+	// }
 }

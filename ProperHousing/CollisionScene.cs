@@ -111,17 +111,19 @@ public class CollisionScene {
 				}
 		}
 		
-		var count = housing->IsOutdoor ? 40 : 400;
-		for(int i = 0; i < count; i++) {
-			var obj = zone->Furniture(i);
-			if(obj == null || Array.IndexOf(furnitureItemBlacklist, (nint)obj->Item) >= 0)
-				continue;
+		if(collisionTypeWhitelist.HasFlag(CollisionType.Furniture)) {
+			var count = housing->IsOutdoor ? 40 : 400;
+			for(int i = 0; i < count; i++) {
+				var obj = zone->Furniture(i);
+				if(obj == null || Array.IndexOf(furnitureItemBlacklist, (nint)obj->Item) >= 0)
+					continue;
+				
+				CheckFurniture(obj);
+			}
 			
-			CheckFurniture(obj);
+			if(!housing->IsOutdoor && housing->CurrentZone()->IndoorGhostObject != null && housing->CurrentZone()->IndoorActiveObject == null)
+				CheckFurniture(housing->CurrentZone()->IndoorGhostObject);
 		}
-		
-		if(!housing->IsOutdoor && housing->CurrentZone()->IndoorGhostObject != null && housing->CurrentZone()->IndoorActiveObject == null)
-			CheckFurniture(housing->CurrentZone()->IndoorGhostObject);
 		
 		return result;
 	}

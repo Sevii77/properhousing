@@ -1,16 +1,8 @@
 using System;
-using System.IO;
-using System.Text;
-using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
 using ImGuiNET;
 using Newtonsoft.Json;
-using Lumina.Data;
-using Lumina.Data.Files;
-using Lumina.Models.Models;
-using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
 using Dalamud.Hooking;
 using static ProperHousing.ProperHousing;
 
@@ -50,7 +42,6 @@ public class AccurateSelection: Module {
 		}
 	}
 	
-	// Debug rendering
 	public unsafe override void DrawDebug() {
 		var zone = housing->CurrentZone();
 		if(zone == null)
@@ -176,8 +167,17 @@ public class AccurateSelection: Module {
 			var screenpos = ImGui.GetMousePos();
 			var ray = Project2D(screenpos);
 			var hit = collisionScene.Raycast(ray.Item1, ray.Item1 + ray.Item2 * 999999);
-			if(hit.Hit && hit.HitType == CollisionScene.CollisionType.Furniture)
-				return hit.HitObj->Item;
+			
+			if(hit.Hit) {
+				if(hit.HitType == CollisionScene.CollisionType.Furniture)
+					return hit.HitObj->Item;
+				
+				// if(!layout->Manager->PreviewMode && hit.HitType == CollisionScene.CollisionType.Furniture)
+				// 	return hit.HitObj->Item;
+				// 
+				// if(layout->Manager->PreviewMode && hit.HitObj->Item == layout->Manager->PlaceItem)
+				// 	return hit.HitObj->Item;
+			}
 			
 			return null;
 		} catch(Exception e) {

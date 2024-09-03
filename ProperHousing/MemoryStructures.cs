@@ -63,13 +63,14 @@ public unsafe struct HousingManager {
 public unsafe struct Furniture {
 	[FieldOffset(0x30)] private fixed byte name[64];
 	[FieldOffset(0x80)] public uint ID;
-	[FieldOffset(0xB0)] public float X;
-	[FieldOffset(0xB4)] public float Y;
-	[FieldOffset(0xB8)] public float Z;
+	[FieldOffset(0xB0)] public Vector3 Position;
+	// [FieldOffset(0xB0)] public float X;
+	// [FieldOffset(0xB4)] public float Y;
+	// [FieldOffset(0xB8)] public float Z;
 	[FieldOffset(0xC0)] public float Rotation;
 	[FieldOffset(0x108)] public FurnitureItem* Item;
 	
-	public Vector3 Pos => new Vector3(X, Y, Z);
+	// public Vector3 Pos => new Vector3(X, Y, Z);
 	public string Name {
 		get {
 			unsafe {
@@ -277,6 +278,7 @@ public unsafe struct LayoutManager {
 	[FieldOffset(0x004)] public LayoutMode LastMode;
 	[FieldOffset(0x010)] public FurnitureItem* HoverItem;
 	[FieldOffset(0x018)] public FurnitureItem* ActiveItem;
+	[FieldOffset(0x038)] public FurnitureItem* PlaceItem;
 	[FieldOffset(0x088)] public bool PreviewMode;
 	[FieldOffset(0x180)] public bool HousingMode;
 	[FieldOffset(0x181)] public bool GridSnap;
