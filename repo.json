@@ -3,7 +3,7 @@
 		"Author": "Sevii",
 		"Name": "Better Housing",
 		"Description": "Furniture selection based on what you see, keybinds, and more.",
-		"InternalName": "ProperHousing",
+		"InternalName": "ProperHousingEx",
 		"AssemblyVersion": "1.2.0",
 		"TestingAssemblyVersion": "1.2.0",
 		"RepoUrl": "https://github.com/Sevii77/properhousing",

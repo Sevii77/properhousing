@@ -3,7 +3,7 @@
 	"Name": "Better Housing",
 	"Punchline": "Furniture selection that actually works properly",
 	"Description": "An improved housing experience. Furniture selection based on what you see, keybinds to switch modes and toggle counter and snap.",
-	"InternalName": "ProperHousing",
+	"InternalName": "ProperHousingEx",
 	"ApplicableVersion": "any",
 	"DalamudApiLevel": 10,
 	"LoadPriority": 0,
