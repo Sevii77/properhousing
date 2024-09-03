@@ -16,6 +16,7 @@
 		"DownloadLinkInstall": "https://github.com/Sevii77/properhousing/raw/master/release.zip",
 		"DownloadLinkTesting": "https://github.com/Sevii77/properhousing/raw/master/release.zip",
 		"DownloadLinkUpdate": "https://github.com/Sevii77/properhousing/raw/master/release.zip",
+		"IconUrl": "https://github.com/Sevii77/properhousing/raw/master/images/icon.png",
 		"Tags": ["Housing"]
 	}
 ]

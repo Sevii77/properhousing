@@ -22,7 +22,7 @@ public abstract class Module {
 		} catch {
 			// legacy supports
 			if(Name == "AccurateSelection" || Name == "GenericKeybinds") {
-				JsonConvert.PopulateObject(File.ReadAllText(ProperHousing.Interface.ConfigFile.FullName), this);
+				JsonConvert.PopulateObject(File.ReadAllText(Path.Join(ProperHousing.Interface.ConfigFile.DirectoryName!, "ProperHousing.json")), this);
 			}
 		}
 	}
