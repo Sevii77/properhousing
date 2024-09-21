@@ -90,12 +90,13 @@ public class AccurateSelection: Module {
 		var screenpos = ImGui.GetMousePos();
 		var ray = Project2D(screenpos);
 		var hit = collisionScene.Raycast(ray.Item1, ray.Item1 + ray.Item2 * 999999);
+		if(!hit.Hit)
+			return;
 		
-		if(hit.Hit && hit.HitType == CollisionScene.CollisionType.World) {
+		if(hit.HitType == CollisionScene.CollisionType.World) {
 			var house = collisionScene.GetMesh((ushort)layout->HouseLayout->Territory);
 			DrawMesh(house![hit.HitObjSubIndex], Vector3.Zero, Quaternion.Identity);
-			return;
-		} else if(hit.Hit && hit.HitType == CollisionScene.CollisionType.Furniture) {
+		} else if(hit.HitType == CollisionScene.CollisionType.Furniture) {
 			var objmesh = collisionScene.GetMesh(hit.HitObj);
 			var segs = hit.HitObj->ModelSegments();
 			for(int i = 0; i < Math.Min(segs.Length, objmesh!.Count); i++) {
@@ -111,7 +112,18 @@ public class AccurateSelection: Module {
 			}
 		}
 		
+		{
+			GameGui.WorldToScreen(hit.HitPos, out var p1);
+			draw.AddCircleFilled(p1, 4, 0xFFFF0000);
+			
+			GameGui.WorldToScreen(hit.HitPos + hit.HitDir, out var p2);
+			draw.AddLine(p1, p2, 0xFFFF0000);
+		}
+		
 		var obj = hit.HitObj;
+		if(obj == null)
+			return;
+		
 		var objIndex = -1;
 		for(int i = 0; i < 400; i++)
 			if(zone->Objects[i] == (ulong)obj) {

@@ -1,10 +1,11 @@
 using System;
+using System.Numerics;
 using ImGuiNET;
 using Newtonsoft.Json;
 using Dalamud.Hooking;
 using static ProperHousing.ProperHousing;
-using System.Numerics;
-using System.Linq.Expressions;
+
+// TODO: cache raytrace results for the frame, pos gets called multiple times for the same object per tick (can also be used in rot then)
 
 namespace ProperHousing;
 
@@ -22,6 +23,8 @@ public class ImprovedPlacement: Module {
 	
 	private unsafe delegate void SetFurniturePosDelegate(FurnitureItem* obj, Vector3* pos);
 	private Hook<SetFurniturePosDelegate> SetFurniturePosHook;
+	private unsafe delegate void SetFurnitureRotDelegate(FurnitureItem* obj, Quaternion* rot);
+	private Hook<SetFurnitureRotDelegate> SetFurnitureRotHook;
 	
 	// private unsafe delegate void SwitchModeDelegate(LayoutManager* manager, LayoutMode mode, FurnitureItem* placeItem);
 	// private Hook<SwitchModeDelegate> SwitchModeHook;
@@ -35,16 +38,19 @@ public class ImprovedPlacement: Module {
 		LoadConfig();
 		
 		SetFurniturePosHook = HookProv.HookFromAddress<SetFurniturePosDelegate>(SigScanner.ScanText(Sigs.SetFurniturePos), SetFurniturePos);
+		SetFurnitureRotHook = HookProv.HookFromAddress<SetFurnitureRotDelegate>(SigScanner.ScanText(Sigs.SetFurnitureRot), SetFurnitureRot);
 		// SwitchModeHook = HookProv.HookFromAddress<SwitchModeDelegate>(SigScanner.ScanText(Sigs.SwitchMode), SwitchMode);
 		
 		if(Enabled) {
 			SetFurniturePosHook.Enable();
+			SetFurnitureRotHook.Enable();
 			// SwitchModeHook.Enable();
 		}
 	}
 	
 	public override void Dispose() {
 		SetFurniturePosHook.Dispose();
+		SetFurnitureRotHook.Dispose();
 		// SwitchModeHook.Dispose();
 	}
 	
@@ -56,9 +62,11 @@ public class ImprovedPlacement: Module {
 			
 			if(Enabled) {
 				SetFurniturePosHook.Enable();
+				SetFurnitureRotHook.Enable();
 				// SwitchModeHook.Enable();
 			} else {
 				SetFurniturePosHook.Disable();
+				SetFurnitureRotHook.Disable();
 				// SwitchModeHook.Disable();
 			}
 		}
@@ -144,6 +152,30 @@ public class ImprovedPlacement: Module {
 		// 		} catch {}
 		// 	}
 		// }
+	}
+	
+	private unsafe void SetFurnitureRot(FurnitureItem* obj, Quaternion* rot) {
+		// var manager = layout->Manager;
+		// if(manager->Mode == LayoutMode.Place || (manager->Mode == LayoutMode.Move && obj == manager->ActiveItem)) {
+		// 	var screenpos = ImGui.GetMousePos();
+		// 	var ray = Project2D(screenpos);
+		// 	var hit = collisionScene.Raycast(
+		// 		ray.Item1,
+		// 		ray.Item1 + ray.Item2 * 999999,
+		// 		manager->Counter ? CollisionScene.CollisionType.All : CollisionScene.CollisionType.World,
+		// 		[(nint)obj]
+		// 	);
+		// 	
+		// 	if(hit.Hit && hit.HitDir.Y < 0.5) {
+		// 		var ang = MathF.Atan2(hit.HitDir.X, hit.HitDir.Z);
+		// 		*rot = Quaternion.CreateFromAxisAngle(new Vector3(0, 1, 0), ang);
+		// 	} else {
+		// 		var ang = MathF.Atan2(rot->Y, rot->W);
+		// 		*rot = Quaternion.CreateFromAxisAngle(new Vector3(0, 1, 0), ang);
+		// 	}
+		// }
+		
+		SetFurnitureRotHook.Original(obj, rot);
 	}
 	
 	// private unsafe void SwitchMode(LayoutManager* manager, LayoutMode mode, FurnitureItem* placeItem) {

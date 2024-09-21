@@ -146,8 +146,10 @@ public class CollisionScene {
 		
 		if(AABBIntersects(bounds.Item1, bounds.Item2, ref rotatedOrigin, ref rotatedDir, out var dist) && dist < distance)
 			foreach(var tri in mesh.Item1)
-				if(Intersects(tri[0] * scale, tri[1] * scale, tri[2] * scale, ref rotatedOrigin, ref rotatedDir, out dist, out hitdir) && dist < distance)
+				if(Intersects(tri[0] * scale, tri[1] * scale, tri[2] * scale, ref rotatedOrigin, ref rotatedDir, out dist, out var hdir) && dist < distance) {
 					distance = dist;
+					hitdir = Vector3.Transform(hdir, rot);
+				}
 		
 		return distance < range;
 	}
@@ -205,7 +207,7 @@ public class CollisionScene {
 			return false;
 		
 		distance = f * Vector3.Dot(edge2, q);
-		hitdir = Vector3.Cross(edge1, edge2);
+		hitdir = Vector3.Normalize(Vector3.Cross(edge1, edge2));
 		return distance > 0;
 	}
 	
