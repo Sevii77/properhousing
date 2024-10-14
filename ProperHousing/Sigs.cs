@@ -9,6 +9,7 @@ public class Sigs {
 	public static readonly string SetFurniturePos = "40 53 48 83 EC 20 8B 02 48 8B D9 89 41 50 8B 42 04 89 41 54 8b 42 08 89 41 58 48";
 	public static readonly string SetFurnitureRot = "40 53 48 83 EC 20 0F 28 02 48 8B D9";
 	public static readonly string SwitchMode = "40 55 56 41 56 48 83 EC 20 48 63 EA";
+	public static readonly string SetFurnitureHalo = "48 89 6C 24 ?? 56 48 83 EC 20 48 8B 81 ?? ?? ?? ?? 8B EA";
 }
 
 // of interest, seems to update visual models i think

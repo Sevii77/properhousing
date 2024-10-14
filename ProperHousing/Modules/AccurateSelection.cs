@@ -48,10 +48,10 @@ public class AccurateSelection: Module {
 			return;
 		
 		var draw = ImGui.GetBackgroundDrawList();
-		void DrawMesh((List<Vector3[]>, (Vector3, Vector3)) mesh, Vector3 pos, Quaternion rot, uint bboxColor = 0xFF0000FF, uint meshColor = 0xFFFFFFFF) {
+		void DrawMesh((List<Vector3[]>, (Vector3, Vector3)) mesh, Vector3 pos, Quaternion rot, Vector3 scale, uint bboxColor = 0xFF0000FF, uint meshColor = 0xFFFFFFFF) {
 			{ // bounding box
-				var pos1 = mesh.Item2.Item1;
-				var pos2 = mesh.Item2.Item2;
+				var pos1 = mesh.Item2.Item1 * scale;
+				var pos2 = mesh.Item2.Item2 * scale;
 				
 				var c1 = GameGui.WorldToScreen(Vector3.Transform(new Vector3(pos1.X, pos1.Y, pos1.Z), rot) + pos, out var p1);
 				var c2 = GameGui.WorldToScreen(Vector3.Transform(new Vector3(pos1.X, pos1.Y, pos2.Z), rot) + pos, out var p2);
@@ -77,9 +77,9 @@ public class AccurateSelection: Module {
 			}
 			
 			foreach(var tri in mesh.Item1) {
-				var c1 = GameGui.WorldToScreen(Vector3.Transform(tri[0], rot) + pos, out var p1);
-				var c2 = GameGui.WorldToScreen(Vector3.Transform(tri[1], rot) + pos, out var p2);
-				var c3 = GameGui.WorldToScreen(Vector3.Transform(tri[2], rot) + pos, out var p3);
+				var c1 = GameGui.WorldToScreen(Vector3.Transform(tri[0] * scale, rot) + pos, out var p1);
+				var c2 = GameGui.WorldToScreen(Vector3.Transform(tri[1] * scale, rot) + pos, out var p2);
+				var c3 = GameGui.WorldToScreen(Vector3.Transform(tri[2] * scale, rot) + pos, out var p3);
 				
 				if(c1 || c2) draw.AddLine(p1, p2, meshColor);
 				if(c2 || c3) draw.AddLine(p2, p3, meshColor);
@@ -94,21 +94,19 @@ public class AccurateSelection: Module {
 			return;
 		
 		if(hit.HitType == CollisionScene.CollisionType.World) {
-			var house = collisionScene.GetMesh((ushort)layout->HouseLayout->Territory);
-			DrawMesh(house![hit.HitObjSubIndex], Vector3.Zero, Quaternion.Identity);
+			var house = collisionScene.GetMesh((ushort)layout->HouseLayout->Territory)!;
+			DrawMesh(house[hit.HitObjSubIndex], Vector3.Zero, Quaternion.Identity, Vector3.One);
 		} else if(hit.HitType == CollisionScene.CollisionType.Furniture) {
-			var objmesh = collisionScene.GetMesh(hit.HitObj);
-			var segs = hit.HitObj->ModelSegments();
-			for(int i = 0; i < Math.Min(segs.Length, objmesh!.Count); i++) {
-				var pos = segs[i]->Position;
-				var rot = segs[i]->Rotation;
-				
-				DrawMesh(objmesh![i], pos, rot, hit.HitObjSubIndex == i ? 0xFF0000FF : 0x400000FF, hit.HitObjSubIndex == i ? 0xFFFFFFFF : 0x40FFFFFF);
-			}
+			var objmesh = collisionScene.GetMesh(hit.HitObj)!;
 			
-			for(int i = 0; i < segs.Length; i++) {
-				GameGui.WorldToScreen(segs[i]->Position, out var p1);
-				draw.AddCircle(p1, 5, 0xFF0000FF);
+			foreach(var piece in hit.HitObj->Item->AllPieces()) {
+				var seg = piece->Segment;
+				if(objmesh.TryGetValue(piece->Index, out var mesh)) {
+					DrawMesh(mesh, seg->Position, seg->Rotation, seg->Scale, hit.HitObjSubIndex == piece->Index ? 0xFF0000FF : 0x400000FF, hit.HitObjSubIndex == piece->Index ? 0xFFFFFFFF : 0x40FFFFFF);
+					
+					GameGui.WorldToScreen(seg->Position, out var p1);
+					draw.AddCircle(p1, 5, 0xFF0000FF);
+				}
 			}
 		}
 		
@@ -132,17 +130,26 @@ public class AccurateSelection: Module {
 			}
 		
 		var p = ImGui.GetMousePos() - new Vector2(0, ImGui.GetFontSize() * 3);
+		// for(int i = 0; i < 400; i++) {
+		// objIndex = i;
+		// obj = zone->Furniture(i);
+		// if(obj == null)
+		// 	continue;
+		// 
+		// if(!GameGui.WorldToScreen(obj->Position, out var p))
+		// 	continue;
+		
 		var str = $"{obj->Name} (index: {objIndex}) (pieces: {obj->Item->PiecesCount})";
 		draw.AddText(p, 0xFF000000, str);
 		draw.AddText(p - Vector2.One, 0xFF0000FF, str);
 		
-		// var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj->ID)?.ModelKey : houseSheet?.GetRow(obj->ID)?.ModelKey;
-		// str = housing->IsOutdoor ?
-		// 	$"bgcommon/hou/outdoor/general/{modelkey:D4}/" :
-		// 	$"bgcommon/hou/indoor/general/{modelkey:D4}/";
-		// p += new Vector2(0, ImGui.GetFontSize());
-		// draw.AddText(p, 0xFF000000, str);
-		// draw.AddText(p - Vector2.One, 0xFF0000FF, str);
+		var modelkey = housing->IsOutdoor ? collisionScene.houseSheetOutdoor?.GetRow(obj->ID)?.ModelKey : collisionScene.houseSheet?.GetRow(obj->ID)?.ModelKey;
+		str = housing->IsOutdoor ?
+			$"bgcommon/hou/outdoor/general/{modelkey:D4}/" :
+			$"bgcommon/hou/indoor/general/{modelkey:D4}/";
+		p += new Vector2(0, ImGui.GetFontSize());
+		draw.AddText(p, 0xFF000000, str);
+		draw.AddText(p - Vector2.One, 0xFF0000FF, str);
 		
 		str = ((nint)obj).ToString("X");
 		p += new Vector2(0, ImGui.GetFontSize());
@@ -154,9 +161,26 @@ public class AccurateSelection: Module {
 			var s = new List<string>();
 			foreach(var v in obj->Item->Pieces())
 				s.Add(((nint)v).ToString("X"));
-			InputHandler.SetClipboard(String.Join(" ", s));
+			InputHandler.SetClipboard(string.Join(" ", s));
 		} else if(new Bind(false, true, false, Key.C).Pressed())
 			InputHandler.SetClipboard(str);
+		
+		void DrawPiece(FurnitureModelPiece* piece, int level = 0) {
+			var index = (piece->Index >> ((3 - level) * 8)) & 0xFF;
+			str = $"{new string('\t', level + 1)}[{index}] {(Lumina.Data.Parsing.Layer.LayerEntryType)piece->Type}";
+			p += new Vector2(0, ImGui.GetFontSize());
+			draw.AddText(p, 0xFF000000, str);
+			draw.AddText(p - Vector2.One, 0xFF0000FF, str);
+			
+			if(piece->Type == 6)
+				foreach(var p in piece->AsItem->Pieces())
+					DrawPiece(p, level + 1);
+		}
+		
+		foreach(var piece in obj->Item->Pieces())
+			DrawPiece(piece);
+		
+		// }
 	}
 	
 	private unsafe FurnitureItem* GetHoverObject(nint unk1) {

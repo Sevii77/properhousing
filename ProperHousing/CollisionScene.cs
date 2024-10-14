@@ -1,11 +1,8 @@
 using System;
-using System.IO;
-using System.Text;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
 using Lumina.Models.Models;
-using Lumina.Data;
 using Lumina.Data.Files;
 using Lumina.Excel;
 using Lumina.Excel.GeneratedSheets;
@@ -28,7 +25,7 @@ public class CollisionScene {
 		public Vector3 HitPos;
 		public Vector3 HitDir;
 		public Furniture* HitObj;
-		public int HitObjSubIndex;
+		public uint HitObjSubIndex;
 		
 		public RaycastResult() {
 			Hit = false;
@@ -36,23 +33,26 @@ public class CollisionScene {
 			HitDir = new Vector3();
 			HitType = CollisionType.None;
 			HitObj = null;
-			HitObjSubIndex = -1;
+			HitObjSubIndex = 0;
 		}
 	}
 	
 	private readonly float epsilon = 0.0000001f;
-	private readonly string[] modelAffix = ["", "a", "b", "c", "d"];
 	private readonly List<Mesh.MeshType> bannedMeshTypes = [
 		Mesh.MeshType.LightShaft, // fuck you lightshafts, your the main reason i made this
 	];
 	
-	private Dictionary<(byte, ushort), List<(List<Vector3[]>, (Vector3, Vector3))>> meshCache;
-	private ExcelSheet<HousingFurniture>? houseSheet;
-	private ExcelSheet<HousingYardObject>? houseSheetOutdoor;
+	private Dictionary<string, (List<Vector3[]>, (Vector3, Vector3))?> meshCache;
+	private Dictionary<(byte, ushort), Dictionary<uint, (List<Vector3[]>, (Vector3, Vector3))>> objCache;
+	
+	public ExcelSheet<HousingFurniture>? houseSheet;
+	public ExcelSheet<HousingYardObject>? houseSheetOutdoor;
 	private ExcelSheet<TerritoryType>? territoryType;
 	
 	public CollisionScene() {
 		meshCache = [];
+		objCache = [];
+		
 		houseSheet = DataManager.GetExcelSheet<HousingFurniture>();
 		houseSheetOutdoor = DataManager.GetExcelSheet<HousingYardObject>();
 		territoryType = DataManager.GetExcelSheet<TerritoryType>();
@@ -75,19 +75,19 @@ public class CollisionScene {
 			var house = GetMesh((ushort)layout->HouseLayout->Territory);
 			if(house != null)
 				for(int i = 0; i < house.Count; i++)
-					if(Collides(house[i], Vector3.Zero, Quaternion.Identity, ref origin, ref dir, distance, out var dist, out var hitdir) && dist < distance) {
+					if(Collides(house[(uint)i], Vector3.Zero, Quaternion.Identity, Vector3.One, ref origin, ref dir, distance, out var dist, out var hitdir) && dist < distance) {
 						distance = dist;
 						
 						result.Hit = true;
 						result.HitType = CollisionType.World;
 						result.HitPos = origin + dir * dist;
 						result.HitDir = hitdir;
-						result.HitObjSubIndex = i;
+						result.HitObjSubIndex = (uint)i;
 					}
 		}
 		
 		void CheckFurniture(Furniture* obj) {
-			List<(List<Vector3[]>, (Vector3, Vector3))>? objmesh = null;
+			Dictionary<uint, (List<Vector3[]>, (Vector3, Vector3))>? objmesh = null;
 			try {
 				objmesh = GetMesh(obj);
 			} catch(Exception e) {
@@ -97,9 +97,9 @@ public class CollisionScene {
 			if(objmesh == null)
 				return;
 			
-			var segs = obj->ModelSegments();
-			for(int i = 0; i < Math.Min(segs.Length, objmesh.Count); i++)
-				if(Collides(objmesh[i], segs[i]->Position, segs[i]->Rotation, ref origin, ref dir, distance, out var dist, out var hitdir) && dist < distance) {
+			foreach(var piece in obj->Item->AllPieces()) {
+				var seg = piece->Segment;
+				if(objmesh.TryGetValue(piece->Index, out var mesh) && Collides(mesh, seg->Position, seg->Rotation, seg->Scale, ref origin, ref dir, distance, out var dist, out var hitdir) && dist < distance) {
 					distance = dist;
 					
 					result.Hit = true;
@@ -107,8 +107,9 @@ public class CollisionScene {
 					result.HitPos = origin + dir * dist;
 					result.HitDir = hitdir;
 					result.HitObj = obj;
-					result.HitObjSubIndex = i;
+					result.HitObjSubIndex = piece->Index;
 				}
+			}
 		}
 		
 		if(collisionTypeWhitelist.HasFlag(CollisionType.Furniture)) {
@@ -132,14 +133,11 @@ public class CollisionScene {
 		return Raycast(origin, target, CollisionType.All, []);
 	}
 	
-	private bool Collides((List<Vector3[]>, (Vector3, Vector3)) mesh, Vector3 pos, Quaternion rot, ref Vector3 origin, ref Vector3 dir, float range, out float distance, out Vector3 hitdir) {
+	private bool Collides((List<Vector3[]>, (Vector3, Vector3)) mesh, Vector3 pos, Quaternion rot, Vector3 scale, ref Vector3 origin, ref Vector3 dir, float range, out float distance, out Vector3 hitdir) {
 		distance = range;
 		hitdir = Vector3.Zero;
 		
 		var irot = Quaternion.Inverse(rot);
-		// var scale = segs[segI]->Scale * obj->Item->Scale;
-		var scale = Vector3.One;
-		
 		var bounds = mesh.Item2;
 		var rotatedOrigin = Vector3.Transform(origin - pos, irot);
 		var rotatedDir = Vector3.Transform(dir, irot);
@@ -211,94 +209,64 @@ public class CollisionScene {
 		return distance > 0;
 	}
 	
-	private List<string> GetModelPaths(string sgbpath) {
-		var sgb = DataManager.GetFile<FileResource>(sgbpath);
+	private Dictionary<uint, string> GetModelPaths(string sgbpath, int level = 0) {
+		// if(level == 0)
+		// 	Logger.Debug(sgbpath);
+		
+		var sgb = DataManager.GetFile<SgbFile>(sgbpath);
 		if(sgb == null)
 			return new();
 		
-		var r = sgb.Reader;
-		
-		// https://github.com/TexTools/xivModdingFramework/blob/0d5f74d74a16ffffac3d57b980f71b2f9365f0ce/xivModdingFramework/Items/Categories/Housing.cs#L456
-		r.BaseStream.Seek(20, SeekOrigin.Begin);
-		var skip = r.ReadInt32() + 20;
-		r.BaseStream.Seek(skip + 4, SeekOrigin.Begin);
-		var offset = r.ReadInt32();
-		r.BaseStream.Seek(skip + offset, SeekOrigin.Begin);
-		
-		var paths = new List<string>();
-		var cur = new StringBuilder(256);
-		for(int i = 0; i < 10; i++) {
-			byte c;
-			while(true) {
-				c = r.ReadByte();
-				if(c == 0xFF)
-					goto exit;
-				if(c == 0)
-					break;
-				
-				cur.Append((char)c);
+		var indent = new string('\t', level + 1);
+		var paths = new Dictionary<uint, string>();
+		foreach(var group in sgb.LayerGroups) {
+			foreach(var layer in group.Layers) {
+				foreach(var obj in layer.InstanceObjects) {
+					if(obj.AssetType == Lumina.Data.Parsing.Layer.LayerEntryType.BG) {
+						var v = (Lumina.Data.Parsing.Layer.LayerCommon.BGInstanceObject)obj.Object;
+						// Logger.Debug($"{indent}{obj.InstanceId} BG: {v.AssetPath}");
+						paths.Add(obj.InstanceId << ((3 - level) * 8), v.AssetPath);
+					} else if(obj.AssetType == Lumina.Data.Parsing.Layer.LayerEntryType.SharedGroup) {
+						var v = (Lumina.Data.Parsing.Layer.LayerCommon.SharedGroupInstanceObject)obj.Object;
+						// Logger.Debug($"{indent}{obj.InstanceId} Shared: {v.AssetPath}");
+						foreach(var a in GetModelPaths(v.AssetPath, level + 1))
+							paths.Add(a.Key | (obj.InstanceId << ((3 - level) * 8)), a.Value);
+					}
+				}
 			}
-			
-			var str = cur.ToString();
-			if(str.EndsWith(".sgb"))
-				paths = paths.Concat(GetModelPaths(str)).ToList();
-			else if(str.EndsWith(".mdl") && !paths.Contains(str))
-				paths.Add(str);
-			cur.Clear();
 		}
-		
-		exit:{}
 		
 		return paths;
 	}
 	
-	public unsafe List<(List<Vector3[]>, (Vector3, Vector3))>? GetMesh(Furniture* obj) {
+	public unsafe Dictionary<uint, (List<Vector3[]>, (Vector3, Vector3))>? GetMesh(Furniture* obj) {
 		if(obj == null)
 			return null;
-		// Logger.Debug($"furniture  {(nint)obj:X}");
-		// Logger.Debug($"furniture id {(nint)obj->ID:X}");
+		
 		var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj->ID)?.ModelKey : houseSheet?.GetRow(obj->ID)?.ModelKey;
 		if(!modelkey.HasValue)
 			return null;
 		
 		var key = ((byte)(housing->IsIndoor ? 0 : 1), modelkey.Value);
-		if(meshCache.ContainsKey(key))
-			return meshCache[key];
+		if(objCache.ContainsKey(key))
+			return objCache[key];
 		
 		var paths = GetModelPaths(housing->IsOutdoor ?
 			$"bgcommon/hou/outdoor/general/{modelkey:D4}/asset/gar_b0_m{modelkey:D4}.sgb" :
 			$"bgcommon/hou/indoor/general/{modelkey:D4}/asset/fun_b0_m{modelkey:D4}.sgb");
 		
-		if(houseSheet?.GetRow(obj->ID)?.AquariumTier > 0) // used because aquariums are scuffed
-			foreach(var affix in modelAffix) {
-				var path = $"bgcommon/hou/indoor/general/{modelkey:D4}/bgparts/fun_b0_m{modelkey:D4}{affix}.mdl";
-				if(!paths.Contains(path))
-					paths.Add(path);
-			}
-		
-		var rtn = new List<(List<Vector3[]>, (Vector3, Vector3))>();
-		foreach(var path in paths) {
-			var mesh = GetMesh(path);
-			if(mesh.HasValue)
-				rtn.Add(mesh.Value);
-		}
-		
-		if(rtn.Count == 0)
-			return null;
-		
-		meshCache[key] = rtn;
-		
-		return rtn;
+		objCache[key] = paths.Select(v => (v.Key, GetMesh(v.Value))).Where(v => v.Item2 != null).Select(v => (v.Key, v.Item2!.Value)).ToDictionary();
+		return objCache[key];
 	}
 	
-	public unsafe List<(List<Vector3[]>, (Vector3, Vector3))>? GetMesh(ushort territory) {
+	public unsafe Dictionary<uint, (List<Vector3[]>, (Vector3, Vector3))>? GetMesh(ushort territory) {
 		var bg = territoryType?.GetRow(territory)?.Bg.ToString();
 		if(bg == null)
 			return null;
 		
 		var key = ((byte)2, territory);
-		if(meshCache.ContainsKey(key))
-			return meshCache[key];
+		if(objCache.ContainsKey(key))
+			return objCache[key];
 		
 		// easier this way
 		var paths = new List<(string, Vector3)>();
@@ -385,8 +353,9 @@ public class CollisionScene {
 				break;
 		}
 		
-		var rtn = new List<(List<Vector3[]>, (Vector3, Vector3))>();
-		foreach(var path in paths) {
+		var rtn = new Dictionary<uint, (List<Vector3[]>, (Vector3, Vector3))>();
+		for(var i = 0; i < paths.Count; i++) {
+			var path = paths[i];
 			var offset = path.Item2;
 			var meshn = GetMesh(path.Item1);
 			if(!meshn.HasValue)
@@ -400,21 +369,25 @@ public class CollisionScene {
 			mesh.Item2.Item1 += offset;
 			mesh.Item2.Item2 += offset;
 			
-			rtn.Add(mesh);
+			rtn.Add((uint)i, mesh);
 		}
 		
 		if(rtn.Count == 0)
 			return null;
 		
-		meshCache[key] = rtn;
-		
+		objCache[key] = rtn;
 		return rtn;
 	}
 	
 	public (List<Vector3[]>, (Vector3, Vector3))? GetMesh(string path) {
+		if(meshCache.TryGetValue(path, out var v))
+			return v;
+		
 		var mdl = DataManager.GetFile<MdlFile>(path);
-		if(mdl == null)
+		if(mdl == null) {
+			meshCache.Add(path, null);
 			return null;
+		}
 		
 		Logger.Info($"Grabbing {path}");
 		
@@ -437,7 +410,7 @@ public class CollisionScene {
 				}
 		}
 		
-		return (tris, (new Vector3(
+		var m = (tris, (new Vector3(
 			mdl.BoundingBoxes.Min[0],
 			mdl.BoundingBoxes.Min[1],
 			mdl.BoundingBoxes.Min[2]
@@ -446,5 +419,9 @@ public class CollisionScene {
 			mdl.BoundingBoxes.Max[1],
 			mdl.BoundingBoxes.Max[2]
 		)));
+		
+		meshCache.Add(path, m);
+		
+		return m;
 	}
 }

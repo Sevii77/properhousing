@@ -97,6 +97,7 @@ public class ProperHousing: IDalamudPlugin {
 			new GenericKeybinds(),
 			// new CameraFollow(),
 			new ImprovedPlacement(),
+			new MultiSelection(),
 		];
 		
 		Interface.UiBuilder.Draw += Draw;
