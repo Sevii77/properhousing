@@ -95,9 +95,8 @@ public class ProperHousing: IDalamudPlugin {
 		modules = [
 			new AccurateSelection(),
 			new GenericKeybinds(),
-			// new CameraFollow(),
 			new ImprovedPlacement(),
-			new MultiSelection(),
+			// new CameraFollow(),
 		];
 		
 		Interface.UiBuilder.Draw += Draw;
@@ -157,12 +156,13 @@ public class ProperHousing: IDalamudPlugin {
 		if(quickDraw && inHousing)
 			gui.DrawQuick(ref quickDraw, modules);
 		
-		if(debugDraw)
+		if(debugDraw) {
 			for(var i = 0; i < modules.Length; i++)
 				modules[i].DrawDebug();
-		
-		// if(DebugDraw)
-		// 	gui.DrawDebug();
+			
+			// gui.DrawDebug();
+			gui.DrawDebugOverlay();
+		}
 		
 		if(inHousing)
 			Tick();

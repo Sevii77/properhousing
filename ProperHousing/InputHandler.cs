@@ -1,7 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using Dalamud.Hooking;
-using Dalamud.Utility;
 
 namespace ProperHousing;
 

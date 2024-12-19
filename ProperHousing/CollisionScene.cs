@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using Lumina.Models.Models;
 using Lumina.Data.Files;
 using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using static ProperHousing.ProperHousing;
 
 namespace ProperHousing;
@@ -45,8 +45,8 @@ public class CollisionScene {
 	private Dictionary<string, (List<Vector3[]>, (Vector3, Vector3))?> meshCache;
 	private Dictionary<(byte, ushort), Dictionary<uint, (List<Vector3[]>, (Vector3, Vector3))>> objCache;
 	
-	public ExcelSheet<HousingFurniture>? houseSheet;
-	public ExcelSheet<HousingYardObject>? houseSheetOutdoor;
+	internal ExcelSheet<HousingFurniture>? houseSheet;
+	internal ExcelSheet<HousingYardObject>? houseSheetOutdoor;
 	private ExcelSheet<TerritoryType>? territoryType;
 	
 	public CollisionScene() {
@@ -96,8 +96,9 @@ public class CollisionScene {
 			
 			if(objmesh == null)
 				return;
-			
+			// Logger.Debug($"{obj->Name} {(nint)obj:X}");
 			foreach(var piece in obj->Item->AllPieces()) {
+				// Logger.Debug($"    {(nint)piece:X}");
 				var seg = piece->Segment;
 				if(objmesh.TryGetValue(piece->Index, out var mesh) && Collides(mesh, seg->Position, seg->Rotation, seg->Scale, ref origin, ref dir, distance, out var dist, out var hitdir) && dist < distance) {
 					distance = dist;
@@ -243,7 +244,7 @@ public class CollisionScene {
 		if(obj == null)
 			return null;
 		
-		var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj->ID)?.ModelKey : houseSheet?.GetRow(obj->ID)?.ModelKey;
+		var modelkey = housing->IsOutdoor ? houseSheetOutdoor?.GetRow(obj->ID).ModelKey : houseSheet?.GetRow(obj->ID).ModelKey;
 		if(!modelkey.HasValue)
 			return null;
 		
@@ -260,7 +261,7 @@ public class CollisionScene {
 	}
 	
 	public unsafe Dictionary<uint, (List<Vector3[]>, (Vector3, Vector3))>? GetMesh(ushort territory) {
-		var bg = territoryType?.GetRow(territory)?.Bg.ToString();
+		var bg = territoryType?.GetRow(territory).Bg.ToString();
 		if(bg == null)
 			return null;
 		
@@ -268,108 +269,57 @@ public class CollisionScene {
 		if(objCache.ContainsKey(key))
 			return objCache[key];
 		
-		// easier this way
-		var paths = new List<(string, Vector3)>();
-		var segs = bg.Split('/');
-		var reg = segs[1];
-		var zone = segs[3];
-		var add = $"{zone[0]}{zone[1]}{zone[2]}0";
+		var paths = new List<(string, Transform)>();
 		
-		// cba figuring out where this is in memory, so hardcoded it is
-		switch(zone[3]) {
-			case '1': // small
-				paths = [
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_s_b1_fl_0000.mdl", new Vector3(2, -7, 4)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_s_b1_wl_0000.mdl", new Vector3(2, -7, 4)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_s_b1_rom0000.mdl", new Vector3(2, -7, 4)),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_s_f1_fl_0000.mdl", Vector3.Zero),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_s_f1_wl_0000.mdl", Vector3.Zero),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_s_f1_rom0000.mdl", Vector3.Zero),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_s_lightgard.mdl", Vector3.Zero),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{add}_c0_slp0005.mdl", new Vector3(8, -7, 4)),
-				];
-				
-				break;
-			case '2': // medium
-				paths = [
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_m_b1_fl_0000.mdl", new Vector3(0, -7, 0)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_m_b1_wl_0000.mdl", new Vector3(0, -7, 0)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_m_b1_rom0000.mdl", new Vector3(0, -7, 0)),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_m_f1_fl_0000.mdl", Vector3.Zero),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_m_f1_wl_0000.mdl", Vector3.Zero),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_m_f1_rom0000.mdl", Vector3.Zero),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_m_f2_fl_0000.mdl", new Vector3(0, 7, 0)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_m_f2_wl_0000.mdl", new Vector3(0, 7, 0)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_m_f2_rom0000.mdl", new Vector3(0, 7, 0)),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_m_lightgard.mdl", Vector3.Zero),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{add}_c0_slp0001.mdl", new Vector3(8, 0, 5)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{add}_c0_slp0002.mdl", new Vector3(-8, -7, 5)),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{add}_c0_ter0001.mdl", new Vector3(8, 7, 5)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{add}_c0_ter0002.mdl", new Vector3(-8, 0, 5)),
-				];
-				
-				break;
-			case '3': // large
-				paths = [
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_l_b1_fl_00000.mdl", new Vector3(0, -7, 0)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_l_b1_wl_00000.mdl", new Vector3(0, -7, 0)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_l_b1_rom0000.mdl", new Vector3(0, -7, 0)),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_l_f1_fl_0000.mdl", Vector3.Zero),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_l_f1_wl_0000.mdl", Vector3.Zero),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_l_f1_rom0000.mdl", Vector3.Zero),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_l_f2_fl_0000.mdl", new Vector3(0, 7, 0)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_l_f2_wl_0000.mdl", new Vector3(0, 7, 0)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_l_f2_rom0000.mdl", new Vector3(0, 7, 0)),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_l_lightgard.mdl", Vector3.Zero),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{add}_c0_slp0003.mdl", new Vector3(-16, -7, -8)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{add}_c0_slp0004.mdl", new Vector3(0, 0, -8)),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{add}_c0_ter0003.mdl", new Vector3(-15, 0, -7)),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{add}_c0_ter0004.mdl", new Vector3(0, 7, 0)),
-				];
-				
-				break;
-			case '4': // apartment
-				paths = [
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_p_f1_fl_0000.mdl", Vector3.Zero),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_p_f1_wl_0000.mdl", Vector3.Zero),
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_p_f1_rom0000.mdl", Vector3.Zero),
-					
-					($"bg/ffxiv/{reg}/ind/common/bgparts/{zone}_p_lightgard.mdl", Vector3.Zero),
-				];
-				
-				break;
+		{
+			var segs = bg.Split('/');
+			var reg = segs[1];
+			var zone = segs[3];
+			var lgb = DataManager.GetFile<LgbFile>($"bg/ffxiv/{reg}/ind/{zone}/level/bg.lgb");
+			if(lgb != null)
+				foreach(var layer in lgb.Layers)
+					foreach(var obj in layer.InstanceObjects)
+						if(obj.AssetType == Lumina.Data.Parsing.Layer.LayerEntryType.BG) {
+							var v = (Lumina.Data.Parsing.Layer.LayerCommon.BGInstanceObject)obj.Object;
+							var t = obj.Transform;
+							paths.Add((v.AssetPath, new Transform {
+								Position = new Vector3(t.Translation.X, t.Translation.Y, t.Translation.Z),
+								Rotation = Quaternion.CreateFromYawPitchRoll(t.Rotation.Y, t.Rotation.X, t.Rotation.Z),
+								Scale = new Vector3(t.Scale.X, t.Scale.Y, t.Scale.Z),
+							}));
+						}
 		}
 		
 		var rtn = new Dictionary<uint, (List<Vector3[]>, (Vector3, Vector3))>();
 		for(var i = 0; i < paths.Count; i++) {
 			var path = paths[i];
-			var offset = path.Item2;
 			var meshn = GetMesh(path.Item1);
 			if(!meshn.HasValue)
 				continue;
 			var mesh = meshn.Value;
+			var transform = path.Item2;
 			
-			for(int j = 0; j < mesh.Item1.Count; j++)
-				for(int k = 0; k < 3; k++)
-					mesh.Item1[j][k] += offset;
+			var tris = new List<Vector3[]>();
+			var min = new Vector3(float.MaxValue);
+			var max = new Vector3(float.MinValue);
 			
-			mesh.Item2.Item1 += offset;
-			mesh.Item2.Item2 += offset;
+			for(int j = 0; j < mesh.Item1.Count; j++) {
+				tris.Add([Vector3.Zero, Vector3.Zero, Vector3.Zero]);
+				for(int k = 0; k < 3; k++) {
+					var v = Vector3.Transform(mesh.Item1[j][k] * transform.Scale, transform.Rotation) + transform.Position;
+					
+					min.X = Math.Min(min.X, v.X);
+					max.X = Math.Max(max.X, v.X);
+					min.Y = Math.Min(min.Y, v.Y);
+					max.Y = Math.Max(max.Y, v.Y);
+					min.Z = Math.Min(min.Z, v.Z);
+					max.Z = Math.Max(max.Z, v.Z);
+					
+					tris[j][k] = v;
+				}
+			}
 			
-			rtn.Add((uint)i, mesh);
+			rtn.Add((uint)i, (tris, (min, max)));
 		}
 		
 		if(rtn.Count == 0)
@@ -401,11 +351,11 @@ public class CollisionScene {
 						var p2 = mesh.Vertices[mesh.Indices[i + 1]].Position;
 						var p3 = mesh.Vertices[mesh.Indices[i + 2]].Position;
 						
-						tris.Add(new Vector3[3] {
+						tris.Add([
 							p1 == null ? Vector3.Zero : new Vector3(p1.Value.X, p1.Value.Y, p1.Value.Z), // / p1.Value.W,
 							p2 == null ? Vector3.Zero : new Vector3(p2.Value.X, p2.Value.Y, p2.Value.Z), // / p2.Value.W,
 							p3 == null ? Vector3.Zero : new Vector3(p3.Value.X, p3.Value.Y, p3.Value.Z), // / p3.Value.W,
-						});
+						]);
 					} catch {}
 				}
 		}

@@ -5,7 +5,7 @@
 	"Description": "An improved housing experience. Furniture selection based on what you see, keybinds to switch modes and toggle counter and snap.",
 	"InternalName": "ProperHousingEx",
 	"ApplicableVersion": "any",
-	"DalamudApiLevel": 10,
+	"DalamudApiLevel": 11,
 	"LoadPriority": 0,
 	"RepoUrl": "https://github.com/Sevii77/properhousing",
 	"Tags": ["House", "Housing", "Furniture", "Select", "Utility"]

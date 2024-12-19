@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using FFXIVClientStructs.STD;
 
 namespace ProperHousing;
 
@@ -14,7 +14,7 @@ public unsafe struct Camera {
 	[FieldOffset(0x090)] public FFXIVClientStructs.FFXIV.Common.Math.Vector3 LookAt;
 	[FieldOffset(0x114)] public float Zoom;
 	[FieldOffset(0x130)] public float HRotation;
-    [FieldOffset(0x134)] public float VRotation;
+	[FieldOffset(0x134)] public float VRotation;
 	[FieldOffset(0x1A0)] public FFXIVClientStructs.FFXIV.Common.Math.Vector4 Angle;
 	// [FieldOffset(0x1B0)] public FFXIVClientStructs.FFXIV.Common.Math.Vector3 Pos;
 	
@@ -107,6 +107,7 @@ public unsafe struct Furniture {
 // }
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct FurnitureItem {
+	// [FieldOffset(0x50)] public Transform Transform;
 	[FieldOffset(0x50)] public Vector3 Position;
 	[FieldOffset(0x60)] public Quaternion Rotation;
 	[FieldOffset(0x70)] public Vector3 Scale;
@@ -114,7 +115,7 @@ public unsafe struct FurnitureItem {
 	[FieldOffset(0x90)] public nint PiecesStart;
 	[FieldOffset(0x98)] public nint PiecesEnd;
 	
-	[FieldOffset(0xF8)] public FurnitureItemIdk* FurnitureItemIdk;
+	[FieldOffset(0xF8)] public FurnitureItemExtras* FurnitureItemExtras;
 	
 	// uVar4
 	public uint PiecesCount {
@@ -159,14 +160,27 @@ public enum HaloColor: byte {
 	Red = 1,
 	Green = 2,
 	Blue = 3,
-	Yellow = 4, // hover
-	Orange = 5, // selected
-	Purple = 6, // invalid
+	Yellow = 4,
+	Hover = 4,
+	Orange = 5,
+	Selected = 5,
+	Purple = 6,
+	Invalid = 6,
 }
 
 [StructLayout(LayoutKind.Explicit)]
-public unsafe struct FurnitureItemIdk {
+public unsafe struct FurnitureItemExtras {
+	[FieldOffset(0x28)] public StdVector<nint> Children;
 	[FieldOffset(0xc0)] public HaloColor HaloColor;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public unsafe struct FurnitureItemChild {
+	[FieldOffset(0x10)] public FurnitureItem* Item;
+	// [FieldOffset(0x20)] public Transform Offset;
+	[FieldOffset(0x20)] public Vector3 Position;
+	[FieldOffset(0x30)] public Quaternion Rotation;
+	[FieldOffset(0x40)] public Vector3 Scale;
 }
 
 [StructLayout(LayoutKind.Explicit)]
@@ -201,6 +215,7 @@ public unsafe struct FurnitureModelSegment {
 	[FieldOffset(0x20)] public FurnitureModelSegment* LinkedPrev;
 	[FieldOffset(0x28)] public FurnitureModelSegment* LinkedNext;
 	
+	// [FieldOffset(0x50)] public Transform Transform;
 	[FieldOffset(0x50)] public Vector3 Position;
 	[FieldOffset(0x60)] public Quaternion Rotation;
 	[FieldOffset(0x70)] public Vector3 Scale;
@@ -252,9 +267,41 @@ public unsafe struct LayoutManager {
 	[FieldOffset(0x018)] public FurnitureItem* ActiveItem;
 	[FieldOffset(0x038)] public FurnitureItem* PlaceItem;
 	[FieldOffset(0x088)] public bool PreviewMode;
+	[FieldOffset(0x090)] public LayoutManagerSub Sub;
 	// seems to be true when noclipped with props
 	// [FieldOffset(0x180)] public bool HousingMode;
 	public bool HousingMode => Mode != LayoutMode.None;
 	[FieldOffset(0x181)] public bool GridSnap;
 	[FieldOffset(0x182)] public bool Counter;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public unsafe struct LayoutManagerSub {
+	[FieldOffset(0x00)] public LayoutManager* Manager;
+	[FieldOffset(0x08)] public Gizmo* Gizmo;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public unsafe struct Gizmo {
+	// [FieldOffset(0x050)] public Transform Transorm;
+	[FieldOffset(0x50)] public Vector3 Position;
+	[FieldOffset(0x60)] public Quaternion Rotation;
+	[FieldOffset(0x70)] public Vector3 Scale;
+	[FieldOffset(0x260)] public Color Color;
+}
+
+[StructLayout(LayoutKind.Explicit, Size = 0x10)]
+public unsafe struct Color {
+	[FieldOffset(0x0)] public float R;
+	[FieldOffset(0x4)] public float G;
+	[FieldOffset(0x8)] public float B;
+	[FieldOffset(0xC)] public float A;
+}
+
+// TODO: convert all the pos, rot, scale to a transform
+[StructLayout(LayoutKind.Explicit, Size = 0x30)]
+public unsafe struct Transform {
+	[FieldOffset(0x00)] public Vector3 Position;
+	[FieldOffset(0x10)] public Quaternion Rotation;
+	[FieldOffset(0x20)] public Vector3 Scale;
 }
