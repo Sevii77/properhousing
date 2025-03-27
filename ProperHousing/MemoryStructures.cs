@@ -45,13 +45,16 @@ public unsafe struct Housing {
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct HousingManager {
 	[FieldOffset(0x8980)] public fixed ulong Objects[400];
+	
+	[FieldOffset(0x96A2)] public byte Ward;
+	[FieldOffset(0x96A8)] public byte Plot;
+	
 	[FieldOffset(0x96F0)] public Furniture* IndoorGhostObject;
 	[FieldOffset(0x96F8)] public Furniture* IndoorHoverObject;
 	[FieldOffset(0x9700)] public Furniture* IndoorActiveObject;
-	// TODO: update these if i ever support outside
-	// [FieldOffset(0x9AB8)] public Furniture* OutdoorGhostObject;
-	// [FieldOffset(0x9AC0)] public Furniture* OutdoorHoverObject;
-	// [FieldOffset(0x9AC8)] public Furniture* OutdoorActiveObject;
+	[FieldOffset(0x9AB8)] public Furniture* OutdoorGhostObject;
+	[FieldOffset(0x9AC0)] public Furniture* OutdoorHoverObject;
+	[FieldOffset(0x9AC8)] public Furniture* OutdoorActiveObject;
 	
 	public Furniture* Furniture(int i) {
 		if(Objects[i] == 0)
@@ -67,7 +70,7 @@ public unsafe struct Furniture {
 	[FieldOffset(0x80)] public uint ID;
 	[FieldOffset(0xB0)] public Vector3 Position;
 	[FieldOffset(0xC0)] public float Rotation;
-	[FieldOffset(0x108)] public FurnitureItem* Item;
+	[FieldOffset(0xF8)] public FurnitureItem* Item;
 	
 	public string Name {
 		get {

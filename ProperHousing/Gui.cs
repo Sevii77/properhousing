@@ -173,6 +173,23 @@ public class Gui {
 		var screenpos = ImGui.GetMousePos();
 		var ray = Project2D(screenpos);
 		var hit = collisionScene.Raycast(ray.Item1, ray.Item1 + ray.Item2 * 999999);
+		
+		if(hit.HitObj == null) {
+			for(int i = 0; i < 400; i++) {
+				var o = zone->Furniture(i);
+				if(o == null)
+					continue;
+				
+				var _modelkey = housing->IsOutdoor ? collisionScene.houseSheetOutdoor?.GetRow(o->ID).ModelKey : collisionScene.houseSheet?.GetRow(o->ID).ModelKey;
+				var _str = $"{_modelkey:D4}";
+				
+				if(GameGui.WorldToScreen(o->Item->Position, out var _p)) {
+					draw.AddText(_p, 0xFF000000, _str);
+					draw.AddText(_p - Vector2.One, 0xFF0000FF, _str);
+				}
+			}
+		}
+		
 		if(!hit.Hit)
 			return;
 		

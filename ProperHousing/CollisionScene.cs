@@ -26,6 +26,7 @@ public class CollisionScene {
 		public Vector3 HitDir;
 		public Furniture* HitObj;
 		public uint HitObjSubIndex;
+		public float Distance;
 		
 		public RaycastResult() {
 			Hit = false;
@@ -58,7 +59,7 @@ public class CollisionScene {
 		territoryType = DataManager.GetExcelSheet<TerritoryType>();
 	}
 	
-	public unsafe RaycastResult Raycast(Vector3 origin, Vector3 target, CollisionType collisionTypeWhitelist, nint[] furnitureItemBlacklist) {
+	public unsafe RaycastResult Raycast(Vector3 origin, Vector3 target, CollisionType collisionTypeWhitelist = CollisionType.All, nint[]? furnitureItemBlacklist = null, nint[]? furnitureItemWhitelist = null) {
 		var result = new RaycastResult();
 		
 		var zone = housing->CurrentZone();
@@ -83,6 +84,7 @@ public class CollisionScene {
 						result.HitPos = origin + dir * dist;
 						result.HitDir = hitdir;
 						result.HitObjSubIndex = (uint)i;
+						result.Distance = dist;
 					}
 		}
 		
@@ -109,15 +111,19 @@ public class CollisionScene {
 					result.HitDir = hitdir;
 					result.HitObj = obj;
 					result.HitObjSubIndex = piece->Index;
+					result.Distance = dist;
 				}
 			}
 		}
 		
 		if(collisionTypeWhitelist.HasFlag(CollisionType.Furniture)) {
-			var count = housing->IsOutdoor ? 40 : 400;
+			// var count = housing->IsOutdoor ? 40 : 400;
+			var count = 400;
 			for(int i = 0; i < count; i++) {
 				var obj = zone->Furniture(i);
-				if(obj == null || Array.IndexOf(furnitureItemBlacklist, (nint)obj->Item) >= 0)
+				if(obj == null ||
+					(furnitureItemBlacklist != null && Array.IndexOf(furnitureItemBlacklist, (nint)obj->Item) >= 0) ||
+					(furnitureItemWhitelist != null && Array.IndexOf(furnitureItemWhitelist, (nint)obj->Item) == -1))
 					continue;
 				
 				CheckFurniture(obj);
@@ -130,9 +136,9 @@ public class CollisionScene {
 		return result;
 	}
 	
-	public unsafe RaycastResult Raycast(Vector3 origin, Vector3 target) {
-		return Raycast(origin, target, CollisionType.All, []);
-	}
+	// public unsafe RaycastResult Raycast(Vector3 origin, Vector3 target) {
+	// 	return Raycast(origin, target, CollisionType.All);
+	// }
 	
 	private bool Collides((List<Vector3[]>, (Vector3, Vector3)) mesh, Vector3 pos, Quaternion rot, Vector3 scale, ref Vector3 origin, ref Vector3 dir, float range, out float distance, out Vector3 hitdir) {
 		distance = range;

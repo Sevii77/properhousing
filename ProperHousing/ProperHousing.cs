@@ -160,7 +160,7 @@ public class ProperHousing: IDalamudPlugin {
 			for(var i = 0; i < modules.Length; i++)
 				modules[i].DrawDebug();
 			
-			// gui.DrawDebug();
+			gui.DrawDebug();
 			gui.DrawDebugOverlay();
 		}
 		

@@ -13,7 +13,9 @@ public class Sigs {
 	public static readonly string SwitchMode = "40 55 56 41 56 48 83 EC 20 48 63 EA";
 	public static readonly string SetFurnitureHalo = "48 89 6C 24 ?? 56 48 83 EC 20 48 8B 81 ?? ?? ?? ?? 8B EA";
 	public static readonly string UpdateGizmo = "40 53 56 48 81 EC C8 00 00 00 0F 29 B4 24 ?? ?? ?? ??";
+	
 	public static readonly string UpdateFurnitureModel = "48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 50 48 8B E9 48 8B 49 ??";
+	public static readonly string GetOutdoorIndex = "48 89 5C 24 ?? 57 48 83 EC 20 0F B6 D9 0F B6 FA";
 }
 
 // of interest, seems to update visual models i think
