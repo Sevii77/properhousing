@@ -208,7 +208,7 @@ public class ImprovedPlacement: Module {
 	private Hook<SetFurniturePosDelegate> SetFurniturePosHook;
 	private unsafe void SetFurniturePos(FurnitureItem* obj, Vector3* pos) {
 		var manager = layout->Manager;
-		if(!(manager->Mode == LayoutMode.Place || (manager->Mode == LayoutMode.Move && obj == manager->ActiveItem))) {
+		if(obj != manager->ActiveItem || !(manager->Mode == LayoutMode.Place || manager->Mode == LayoutMode.Move)) {
 			SetFurniturePosHook.Original(obj, pos);
 			return;
 		}
