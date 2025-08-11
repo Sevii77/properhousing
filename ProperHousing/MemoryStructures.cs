@@ -67,10 +67,10 @@ public unsafe struct HousingManager {
 [StructLayout(LayoutKind.Explicit)]
 public unsafe struct Furniture {
 	[FieldOffset(0x30)] private fixed byte name[64];
-	[FieldOffset(0x80)] public uint ID;
+	[FieldOffset(0x84)] public uint ID;
 	[FieldOffset(0xB0)] public Vector3 Position;
 	[FieldOffset(0xC0)] public float Rotation;
-	[FieldOffset(0xF8)] public FurnitureItem* Item;
+	[FieldOffset(0x108)] public FurnitureItem* Item;
 	
 	public string Name {
 		get {

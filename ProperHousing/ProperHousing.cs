@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Dalamud.IoC;
 using Dalamud.Game;
 using Dalamud.Plugin;

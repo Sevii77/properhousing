@@ -1,5 +1,5 @@
 using System;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Newtonsoft.Json;
 using Dalamud.Hooking;
 using static ProperHousing.ProperHousing;

@@ -1,5 +1,5 @@
 using System;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Newtonsoft.Json;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using static ProperHousing.ProperHousing;

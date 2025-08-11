@@ -262,7 +262,12 @@ public class CollisionScene {
 			$"bgcommon/hou/outdoor/general/{modelkey:D4}/asset/gar_b0_m{modelkey:D4}.sgb" :
 			$"bgcommon/hou/indoor/general/{modelkey:D4}/asset/fun_b0_m{modelkey:D4}.sgb");
 		
-		objCache[key] = paths.Select(v => (v.Key, GetMesh(v.Value))).Where(v => v.Item2 != null).Select(v => (v.Key, v.Item2!.Value)).ToDictionary();
+		objCache[key] = paths
+			.Select(v => (v.Key, GetMesh(v.Value)))
+			.Where(v => v.Item2 != null)
+			.Select(v => (v.Key, v.Item2!.Value))
+			.ToDictionary();
+		
 		return objCache[key];
 	}
 	
