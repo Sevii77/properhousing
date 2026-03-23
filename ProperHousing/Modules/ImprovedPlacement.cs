@@ -151,7 +151,7 @@ public class ImprovedPlacement: Module {
 		}
 		
 		if(GridSizeDecrease.Pressed()) {
-			GridSize = MathF.Max(GridSize - GridSizeIncrement, 0.001f);
+			GridSize = MathF.Max(GridSize - GridSizeIncrement, GridSizeIncrement);
 			SaveConfig();
 		}
 		

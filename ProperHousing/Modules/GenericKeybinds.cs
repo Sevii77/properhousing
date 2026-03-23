@@ -64,28 +64,27 @@ public class GenericKeybinds: Module {
 			}
 		}
 		
-		void ToggleCheckbox(ushort index, int nodeindex) {
+		void ToggleCheckbox(int nodeindex) {
 			var addon = AtkStage.Instance()->RaptureAtkUnitManager->GetAddonByName("HousingLayout");
+			if(addon == null)
+				return;
 			
-			var eventData = stackalloc void*[3];
-			eventData[0] = null;
-			eventData[1] = addon->UldManager.NodeList[nodeindex];
-			eventData[2] = addon;
+			var node = addon->UldManager.NodeList[nodeindex];
+			if(node == null)
+				return;
 			
-			var inputData = stackalloc void*[8];
-			for(var i = 0; i < 8; i++)
-				inputData[i] = null;
+			var checkbox = node->GetAsAtkComponentCheckBox();
 			
-			addon->AtkEventListener.VirtualTable->ReceiveEvent(&addon->AtkEventListener, (AtkEventType)25, index, (AtkEvent*)eventData, (AtkEventData*)inputData);
+			ECommons.Automation.UIInput.ClickHelperExtensions.ClickCheckBox(*checkbox, addon);
 		}
 		
-		if(MoveMode.Pressed()) ToggleCheckbox(1, 9);
-		if(RotateMode.Pressed()) ToggleCheckbox(2, 8);
+		if(MoveMode.Pressed()) ToggleCheckbox(9);
+		if(RotateMode.Pressed()) ToggleCheckbox(8);
 		if(!layout->Manager->PreviewMode) {
-			if(RemoveMode.Pressed()) ToggleCheckbox(3, 7);
-			if(StoreMode.Pressed()) ToggleCheckbox(4, 6);
+			if(RemoveMode.Pressed()) ToggleCheckbox(7);
+			if(StoreMode.Pressed()) ToggleCheckbox(6);
 		}
-		if(CounterToggle.Pressed()) ToggleCheckbox(6, 3);
-		if(GridToggle.Pressed()) ToggleCheckbox(7, 2);
+		if(CounterToggle.Pressed()) ToggleCheckbox(3);
+		if(GridToggle.Pressed()) ToggleCheckbox(2);
 	}
 }
