@@ -59,7 +59,7 @@ public class ImprovedPlacement: Module {
 		
 		SetFurnitureHaloHook = HookProv.HookFromAddress<SetFurnitureHaloDelegate>(SigScanner.ScanText(Sigs.SetFurnitureHalo), SetFurnitureHalo);
 		SetActiveObjectHook = HookProv.HookFromAddress<SetActiveObjectDelegate>(SigScanner.ScanText(Sigs.SetActiveObject), SetActiveObject);
-		UpdateGizmoHook = HookProv.HookFromAddress<UpdateGizmoDelegate>(SigScanner.ScanText(Sigs.UpdateGizmo), UpdateGizmo);
+		// UpdateGizmoHook = HookProv.HookFromAddress<UpdateGizmoDelegate>(SigScanner.ScanText(Sigs.UpdateGizmo), UpdateGizmo);
 		// if(MultiSelection) {
 		// 	SetFurnitureHaloHook.Enable();
 		// 	SetActiveObjectHook.Enable();
@@ -79,7 +79,7 @@ public class ImprovedPlacement: Module {
 		SetFurnitureTransformHook.Dispose();
 		SetFurnitureHaloHook.Dispose();
 		SetActiveObjectHook.Dispose();
-		UpdateGizmoHook.Dispose();
+		// UpdateGizmoHook.Dispose();
 		// UpdateFurnitureTransformHook.Dispose();
 		// SwitchModeHook.Dispose();
 	}
@@ -330,20 +330,20 @@ public class ImprovedPlacement: Module {
 		}
 	}
 	
-	private unsafe delegate void UpdateGizmoDelegate(LayoutManagerSub* submanager, Transform* transform);
-	private Hook<UpdateGizmoDelegate> UpdateGizmoHook;
-	private unsafe void UpdateGizmo(LayoutManagerSub* submanager, Transform* transform) {
-		UpdateGizmoHook.Original(submanager, transform);
-		
-		// if(!MultiSelection || selected.Count == 0)
-		// 	return;
-		// 
-		// var gizmo = submanager->Gizmo;
-		// if(gizmo == null)
-		// 	return;
-		// 
-		// gizmo->Position = Vector3.Zero;
-	}
+	// private unsafe delegate void UpdateGizmoDelegate(LayoutManagerSub* submanager, Transform* transform);
+	// private Hook<UpdateGizmoDelegate> UpdateGizmoHook;
+	// private unsafe void UpdateGizmo(LayoutManagerSub* submanager, Transform* transform) {
+	// 	UpdateGizmoHook.Original(submanager, transform);
+	// 	
+	// 	// if(!MultiSelection || selected.Count == 0)
+	// 	// 	return;
+	// 	// 
+	// 	// var gizmo = submanager->Gizmo;
+	// 	// if(gizmo == null)
+	// 	// 	return;
+	// 	// 
+	// 	// gizmo->Position = Vector3.Zero;
+	// }
 	
 	// /// ptr = FurnitureItemExtras* + 0x18
 	// private unsafe delegate void UpdateFurnitureTransformDelegate(FurnitureItem* obj, Transform* transform);
